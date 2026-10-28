@@ -88,7 +88,11 @@ if (!accountResponse.ok) {
   );
 
   return json(
-    { ok: false, error: "Login service unavailable" },
+    {
+      ok: false,
+      error: "Login service unavailable",
+      diagnosticStatus: accountResponse.status
+    },
     502
   );
 }
