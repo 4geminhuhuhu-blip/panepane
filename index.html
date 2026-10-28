@@ -108,5 +108,38 @@
   <footer>
     © パネパン｜IRIAM パネル開けシステム
   </footer>
+<section class="card" id="login">
+  <h2>ライバー専用ログイン</h2>
+  <p>発行されたIDとパスワードでログインしてください。</p>
+
+  <form onsubmit="event.preventDefault(); alert('ログイン機能は次のステップで接続します。');">
+    <label for="login-id">ログインID</label>
+    <input
+      id="login-id"
+      type="text"
+      placeholder="例：panepan_001"
+      autocomplete="username"
+      required
+      style="width:100%;padding:12px;margin:8px 0 16px;border:1px solid #ddd;border-radius:8px;"
+    >
+
+    <label for="login-password">パスワード</label>
+    <input
+      id="login-password"
+      type="password"
+      placeholder="8文字以上"
+      autocomplete="current-password"
+      minlength="8"
+      required
+      style="width:100%;padding:12px;margin:8px 0 16px;border:1px solid #ddd;border-radius:8px;"
+    >
+
+    <button class="button" type="submit">ログイン</button>
+  </form>
+
+  <p class="note">
+    ※現在は画面の試作段階です。まだ本当のログインはできません。
+  </p>
+</section>
 </body>
 </html>
