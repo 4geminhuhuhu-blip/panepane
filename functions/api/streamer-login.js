@@ -81,12 +81,17 @@ export async function onRequest({ request, env }) {
       },
     });
 
-    if (!accountResponse.ok) {
-      return json(
-        { ok: false, error: "Login service unavailable" },
-        502
-      );
-    }
+if (!accountResponse.ok) {
+  console.error(
+    "streamer_accounts request failed",
+    accountResponse.status
+  );
+
+  return json(
+    { ok: false, error: "Login service unavailable" },
+    502
+  );
+}
 
     const accounts = await accountResponse.json();
     const account = Array.isArray(accounts) ? accounts[0] : null;
