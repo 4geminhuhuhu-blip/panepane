@@ -8,10 +8,7 @@ export async function onRequest({ request, env }) {
   if (request.method !== "POST") {
     return new Response(
       JSON.stringify({ ok: false, error: "POST method required" }),
-      {
-        status: 405,
-        headers: { ...headers, Allow: "POST" },
-      }
+      { status: 405, headers: { ...headers, Allow: "POST" } }
     );
   }
 
@@ -52,7 +49,6 @@ export async function onRequest({ request, env }) {
   const supabaseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
 
   try {
-    // 1. Supabase Authでメールアドレスとパスワードを検証
     const authResponse = await fetch(
       `${supabaseUrl}/auth/v1/token?grant_type=password`,
       {
@@ -67,22 +63,31 @@ export async function onRequest({ request, env }) {
 
     if (!authResponse.ok) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Invalid credentials or not an admin" }),
+        JSON.stringify({
+          ok: false,
+          error: "Invalid credentials or not an admin",
+        }),
         { status: 401, headers }
       );
     }
 
     const authData = await authResponse.json();
     const userId = authData.user?.id;
+    const accessToken = authData.access_token;
+    const expiresIn = Number(authData.expires_in);
 
-    if (!userId) {
+    if (
+      !userId ||
+      typeof accessToken !== "string" ||
+      !Number.isFinite(expiresIn) ||
+      expiresIn <= 0
+    ) {
       return new Response(
         JSON.stringify({ ok: false, error: "Authentication failed" }),
         { status: 401, headers }
       );
     }
 
-    // 2. サーバー側の秘密鍵で管理者登録を確認
     const adminUrl = new URL(`${supabaseUrl}/rest/v1/admin_users`);
     adminUrl.searchParams.set("select", "user_id");
     adminUrl.searchParams.set("user_id", `eq.${userId}`);
@@ -106,16 +111,29 @@ export async function onRequest({ request, env }) {
 
     if (!Array.isArray(admins) || admins.length !== 1) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Invalid credentials or not an admin" }),
+        JSON.stringify({
+          ok: false,
+          error: "Invalid credentials or not an admin",
+        }),
         { status: 403, headers }
       );
     }
 
-    // 認証と管理者登録の確認結果のみ返す。
-    // この応答だけでは、永続的なログインセッションは作成されない。
+    const cookie = [
+      `panepan_session=${encodeURIComponent(accessToken)}`,
+      "Path=/",
+      "HttpOnly",
+      "Secure",
+      "SameSite=Lax",
+      `Max-Age=${Math.min(Math.floor(expiresIn), 3600)}`,
+    ].join("; ");
+
     return new Response(
       JSON.stringify({ ok: true, message: "Admin verified" }),
-      { status: 200, headers }
+      {
+        status: 200,
+        headers: { ...headers, "Set-Cookie": cookie },
+      }
     );
   } catch {
     return new Response(
