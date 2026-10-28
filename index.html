@@ -112,7 +112,7 @@
   <h2>ライバー専用ログイン</h2>
   <p>発行されたIDとパスワードでログインしてください。</p>
 
-  <form onsubmit="event.preventDefault(); alert('ログイン機能は次のステップで接続します。');">
+　 <form id="streamer-login-form">
     <label for="login-id">ログインID</label>
     <input
       id="login-id"
@@ -135,11 +135,61 @@
     >
 
     <button class="button" type="submit">ログイン</button>
+   <p id="login-message" class="note" role="status" aria-live="polite"></p>
   </form>
 
   <p class="note">
     ※現在は画面の試作段階です。まだ本当のログインはできません。
   </p>
 </section>
+<script>
+
+const loginForm = document.getElementById("streamer-login-form");
+
+if (loginForm) {
+  loginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const message = document.getElementById("login-message");
+    const loginId = document.getElementById("login-id").value.trim();
+    const password = document.getElementById("login-password").value;
+    const submitButton = loginForm.querySelector('button[type="submit"]');
+
+    message.textContent = "ログインを確認しています…";
+    submitButton.disabled = true;
+
+    try {
+      const response = await fetch("/api/streamer-login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          login_id: loginId,
+          password: password
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        message.textContent =
+          result.error === "Invalid login ID or password"
+            ? "ログインIDまたはパスワードを確認してください。"
+            : "ログインできませんでした。時間をおいて再度お試しください。";
+        return;
+      }
+
+      message.textContent = "ログインしました。次の画面を準備しています。";
+    } catch {
+      message.textContent =
+        "通信に失敗しました。インターネット接続を確認してください。";
+    } finally {
+      submitButton.disabled = false;
+    }
+  });
+}  
+</script>
 </body>
 </html>
