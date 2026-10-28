@@ -167,7 +167,9 @@ if (!accountResponse.ok) {
       200,
       { "Set-Cookie": cookie }
     );
-  } catch {
+　 } catch (error) {
+    console.error("streamer-login unexpected error:", error);
+
     return json(
       { ok: false, error: "Login service unavailable" },
       502
