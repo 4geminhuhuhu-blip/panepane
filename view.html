@@ -1,0 +1,262 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>パネパン｜チャレンジ</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 20px 12px;
+      font-family: sans-serif;
+      background: #f5f5f5;
+      color: #333;
+    }
+
+    .container {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 24px;
+      overflow-wrap: anywhere;
+    }
+
+    .status {
+      text-align: center;
+      margin: 12px 0;
+      font-weight: bold;
+    }
+
+    .progress-text {
+      text-align: center;
+      margin-bottom: 8px;
+    }
+
+    .progress-track {
+      height: 12px;
+      background: #ddd;
+      border-radius: 20px;
+      overflow: hidden;
+      margin-bottom: 18px;
+    }
+
+    .progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #42b883;
+      transition: width .2s;
+    }
+
+    .board {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid #ccc;
+    }
+
+    .character {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .character img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      transform-origin: center;
+    }
+
+    .panels {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      gap: 2px;
+      background: #333;
+    }
+
+    .panel {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 4px;
+      text-align: center;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      font-size: clamp(9px, 2.5vw, 16px);
+      background: rgba(255, 255, 255, .94);
+      color: #333;
+    }
+
+    .panel.open {
+      background: transparent;
+      color: transparent;
+      border: none;
+    }
+
+    .message {
+      text-align: center;
+      padding: 24px 8px;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <h1 id="challengeTitle">立ち絵チャレンジ</h1>
+    <div class="status" id="challengeStatus">読み込み中...</div>
+
+    <div class="progress-text" id="progressText">進捗を読み込み中...</div>
+    <div class="progress-track">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+
+    <div id="board" class="board hidden">
+      <div class="character">
+        <img id="characterImage" alt="チャレンジの立ち絵">
+      </div>
+      <div id="panels" class="panels"></div>
+    </div>
+
+    <div id="message" class="message">チャレンジ情報を読み込んでいます。</div>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const streamerId = params.get("id");
+
+    const titleEl = document.getElementById("challengeTitle");
+    const statusEl = document.getElementById("challengeStatus");
+    const progressText = document.getElementById("progressText");
+    const progressBar = document.getElementById("progressBar");
+    const board = document.getElementById("board");
+    const panelsEl = document.getElementById("panels");
+    const imageEl = document.getElementById("characterImage");
+    const messageEl = document.getElementById("message");
+
+    function showError(message) {
+      board.classList.add("hidden");
+      messageEl.textContent = message;
+      messageEl.classList.remove("hidden");
+    }
+
+    async function loadChallenge() {
+      if (!streamerId) {
+        showError("URLに配信者IDが指定されていません。");
+        statusEl.textContent = "";
+        progressText.textContent = "";
+        progressBar.style.width = "0%";
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          "/api/public-challenge?id=" + encodeURIComponent(streamerId),
+          { cache: "no-store" }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || "チャレンジを読み込めませんでした。");
+        }
+
+        const challenge = data.challenge;
+        const panels = data.panels || [];
+
+        if (!challenge) {
+          throw new Error("チャレンジが見つかりません。");
+        }
+
+        titleEl.textContent = challenge.title || "立ち絵チャレンジ";
+
+        const rows = Number(challenge.grid_rows);
+        const columns = Number(challenge.grid_columns);
+
+        if (
+          !Number.isInteger(rows) || !Number.isInteger(columns) ||
+          rows < 3 || rows > 10 || columns < 3 || columns > 10 ||
+          panels.length !== rows * columns
+        ) {
+          throw new Error("パネル情報が正しくありません。");
+        }
+
+        if (challenge.image_url) {
+          imageEl.src = challenge.image_url;
+          imageEl.style.transform =
+            "translate(" +
+            (Number(challenge.image_position_x) || 0) + "px, " +
+            (Number(challenge.image_position_y) || 0) + "px) " +
+            "scale(" + (Number(challenge.image_scale) || 1) + ")";
+          imageEl.onerror = () => {
+            showError("立ち絵を読み込めませんでした。");
+          };
+        } else {
+          imageEl.removeAttribute("src");
+        }
+
+        panelsEl.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
+        panelsEl.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+        panelsEl.replaceChildren();
+
+        let openedCount = 0;
+
+        panels.forEach((panel) => {
+          const cell = document.createElement("div");
+          cell.className = "panel";
+
+          if (panel.is_open) {
+            cell.classList.add("open");
+            cell.textContent = "";
+            openedCount++;
+          } else {
+            cell.textContent = panel.condition || "";
+          }
+
+          panelsEl.appendChild(cell);
+        });
+
+        const total = rows * columns;
+        const percent = Math.round((openedCount / total) * 100);
+
+        progressText.textContent =
+          `${openedCount} / ${total} 枚オープン（${percent}%）`;
+        progressBar.style.width = percent + "%";
+
+        if (challenge.is_started) {
+          statusEl.textContent = challenge.ended_at
+            ? "チャレンジ終了"
+            : "チャレンジ中";
+        } else {
+          statusEl.textContent = "開始前";
+        }
+
+        board.classList.remove("hidden");
+        messageEl.classList.add("hidden");
+      } catch (error) {
+        console.error(error);
+        statusEl.textContent = "";
+        progressText.textContent = "";
+        progressBar.style.width = "0%";
+        showError(error.message || "読み込みに失敗しました。");
+      }
+    }
+
+    loadChallenge();
+  </script>
+</body>
+</html>
