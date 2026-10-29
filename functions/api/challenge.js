@@ -446,6 +446,7 @@ async function saveChallenge(request, env, streamerId) {
       }
     }
   }
+}
 
 export async function onRequest({ request, env }) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
