@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -68,7 +69,7 @@
       background: white;
     }
 
-    input:disabled, select:disabled {
+    input:disabled, select:disabled, textarea:disabled {
       background: #e9edf3;
       color: #64748b;
     }
@@ -125,6 +126,7 @@
     }
 
     .secondary-button { background: #64748b; }
+    .danger-button { background: #b91c1c; }
 
     .actions {
       display: flex;
@@ -151,6 +153,11 @@
       font-size: 13px;
     }
 
+    .status-badge.ended {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
     .image-preview-area {
       margin-top: 16px;
     }
@@ -175,7 +182,8 @@
       height: 100%;
       object-fit: contain;
     }
-        .image-adjust-controls {
+
+    .image-adjust-controls {
       max-width: 360px;
       margin-top: 16px;
     }
@@ -275,7 +283,6 @@
       </p>
     </section>
 
-    
     <section class="card">
       <h2>立ち絵の設定</h2>
 
@@ -309,7 +316,6 @@
         </div>
       </div>
 
-      
       <div class="image-adjust-controls">
         <label for="image-scale">
           画像の大きさ
@@ -351,7 +357,6 @@
         >
       </div>
 
-
       <div class="actions">
         <button id="upload-image-button" type="button">
           立ち絵をアップロード
@@ -360,7 +365,6 @@
 
       <p id="image-message" role="status" aria-live="polite"></p>
     </section>
-
 
     <section class="card">
       <h2>マスごとの達成条件</h2>
@@ -376,14 +380,20 @@
         <button id="save-button" type="button">設定を保存</button>
         <button
           id="reload-button"
-           class="secondary-button"
-           type="button"
-         >保存済み設定を再読み込み</button>
-         <button
-            id="start-button"
-           type="button"
-          >チャレンジ開始</button>
-       </div>
+          class="secondary-button"
+          type="button"
+        >保存済み設定を再読み込み</button>
+        <button
+          id="start-button"
+          type="button"
+        >チャレンジ開始</button>
+        <button
+          id="end-button"
+          class="danger-button"
+          type="button"
+          hidden
+        >チャレンジ終了</button>
+      </div>
 
       <p id="message" role="status" aria-live="polite"></p>
     </section>
@@ -410,13 +420,14 @@
   const reloadButton = document.getElementById("reload-button");
   const message = document.getElementById("message");
   const startButton = document.getElementById("start-button");
-  
+  const endButton = document.getElementById("end-button");
+
   const imageInput = document.getElementById("character-image");
   const imagePreview = document.getElementById("character-image-preview");
   const imagePlaceholder = document.getElementById("character-image-placeholder");
   const uploadImageButton = document.getElementById("upload-image-button");
   const imageMessage = document.getElementById("image-message");
-  
+
   const imageScaleInput = document.getElementById("image-scale");
   const imageXInput = document.getElementById("image-x");
   const imageYInput = document.getElementById("image-y");
@@ -442,7 +453,6 @@
   imageScaleInput.addEventListener("input", applyImageAdjustments);
   imageXInput.addEventListener("input", applyImageAdjustments);
   imageYInput.addEventListener("input", applyImageAdjustments);
-
 
   let uploadingImage = false;
   let previewObjectUrl = null;
@@ -470,6 +480,12 @@
   }
 
   imageInput.addEventListener("change", function () {
+    if (challenge && challenge.is_ended) {
+      imageInput.value = "";
+      showImageMessage("終了したチャレンジの画像は変更できません。", "error");
+      return;
+    }
+
     const file = imageInput.files && imageInput.files[0];
 
     if (!file) return;
@@ -514,7 +530,6 @@
     );
   });
 
-
   let challenge = null;
   let panels = [];
   let loading = false;
@@ -533,168 +548,203 @@
     return Number(columnsInput.value);
   }
 
-function renderPanels() {
-  const count = getRows() * getColumns();
-  const previousValues = new Map();
-
-  panelList.querySelectorAll("textarea").forEach(function (input) {
-    previousValues.set(Number(input.dataset.number), input.value);
-  });
-
-  panels.forEach(function (panel) {
-    previousValues.set(
-      panel.panel_number,
-      panel.condition_text || ""
-    );
-  });
-
-  panelList.replaceChildren();
-  panelCount.textContent = count + "マス";
-
-  for (let number = 1; number <= count; number++) {
-    const item = document.createElement("div");
-    item.className = "panel-item";
-
-    const label = document.createElement("label");
-    label.htmlFor = "panel-" + number;
-    label.textContent = "マス " + number;
-
-    const panel = panels.find(function (p) {
-      return Number(p.panel_number) === number;
-    });
-
-    const isOpen = Boolean(panel && panel.is_open);
-
-    const state = document.createElement("div");
-    state.className = "panel-state";
-    state.textContent = isOpen ? "開放済み" : "未開放";
-
-    const textarea = document.createElement("textarea");
-    textarea.id = "panel-" + number;
-    textarea.dataset.number = String(number);
-    textarea.maxLength = 500;
-    textarea.placeholder = "このマスを開放する条件を入力";
-    textarea.value = previousValues.get(number) || "";
-
-    const panelButton = document.createElement("button");
-    panelButton.type = "button";
-    panelButton.textContent = isOpen ? "閉じる" : "開く";
-    panelButton.className = isOpen
-      ? "secondary-button"
-      : "";
-
-    panelButton.disabled = !challenge || !challenge.is_started;
-
-    panelButton.addEventListener("click", function () {
-      setPanelOpen(number, !isOpen);
-    });
-
-    panelButton.style.marginTop = "10px";
-
-    item.append(label, state, textarea, panelButton);
-    panelList.appendChild(item);
-  }
-}
-
-
-async function setPanelOpen(panelNumber, isOpen) {
-  if (loading || saving) return;
-
-  if (!challenge || !challenge.is_started) {
-    showMessage(
-      "チャレンジを開始してから操作してください。",
-      "error"
-    );
-    return;
+  function isEnded() {
+    return Boolean(challenge && challenge.is_ended);
   }
 
-  const buttons = panelList.querySelectorAll("button");
+  function updateControls() {
+    const ended = isEnded();
+    const started = Boolean(challenge && challenge.is_started);
 
-  buttons.forEach(function (button) {
-    button.disabled = true;
-  });
+    titleInput.disabled = ended || loading || saving;
+    rowsInput.disabled = ended || started || loading || saving;
+    columnsInput.disabled = ended || started || loading || saving;
 
-  showMessage(
-    isOpen
-      ? "パネルを開いています..."
-      : "パネルを閉じています..."
-  );
+    saveButton.disabled = ended || loading || saving;
+    reloadButton.disabled = loading || saving;
 
-  try {
-    const response = await fetch("/api/challenge", {
-      method: "PATCH",
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        action: "set-panel",
-        panel_number: panelNumber,
-        is_open: isOpen
-      })
+    imageInput.disabled = ended || uploadingImage || loading || saving;
+    uploadImageButton.disabled = ended || uploadingImage || loading || saving;
+
+    imageScaleInput.disabled = ended || loading || saving;
+    imageXInput.disabled = ended || loading || saving;
+    imageYInput.disabled = ended || loading || saving;
+
+    startButton.hidden = !challenge || started || ended;
+    startButton.disabled = loading || saving;
+
+    endButton.hidden = !challenge || !started || ended;
+    endButton.disabled = loading || saving;
+  }
+
+  function renderPanels() {
+    const count = getRows() * getColumns();
+    const previousValues = new Map();
+
+    panelList.querySelectorAll("textarea").forEach(function (input) {
+      previousValues.set(Number(input.dataset.number), input.value);
     });
 
-    const result = await response.json();
-
-    if (!response.ok || result.ok !== true) {
-      throw new Error(
-        result.error || "パネルの状態を変更できませんでした。"
+    panels.forEach(function (panel) {
+      previousValues.set(
+        panel.panel_number,
+        panel.condition_text || ""
       );
-    }
-
-    // サーバーから最新のパネル状態を読み直す
-    const refreshResponse = await fetch("/api/challenge", {
-      method: "GET",
-      credentials: "same-origin",
-      cache: "no-store"
     });
 
-    const refreshResult = await refreshResponse.json();
+    panelList.replaceChildren();
+    panelCount.textContent = count + "マス";
 
-    if (!refreshResponse.ok || refreshResult.ok !== true) {
-      throw new Error(
-        refreshResult.error || "パネル情報を再取得できませんでした。"
+    for (let number = 1; number <= count; number++) {
+      const item = document.createElement("div");
+      item.className = "panel-item";
+
+      const label = document.createElement("label");
+      label.htmlFor = "panel-" + number;
+      label.textContent = "マス " + number;
+
+      const panel = panels.find(function (p) {
+        return Number(p.panel_number) === number;
+      });
+
+      const isOpen = Boolean(panel && panel.is_open);
+
+      const state = document.createElement("div");
+      state.className = "panel-state";
+      state.textContent = isOpen ? "開放済み" : "未開放";
+
+      const textarea = document.createElement("textarea");
+      textarea.id = "panel-" + number;
+      textarea.dataset.number = String(number);
+      textarea.maxLength = 500;
+      textarea.placeholder = "このマスを開放する条件を入力";
+      textarea.value = previousValues.get(number) || "";
+      textarea.disabled = isEnded() || loading || saving;
+
+      const panelButton = document.createElement("button");
+      panelButton.type = "button";
+      panelButton.textContent = isOpen ? "閉じる" : "開く";
+      panelButton.className = isOpen
+        ? "secondary-button"
+        : "";
+
+      panelButton.disabled =
+        !challenge ||
+        !challenge.is_started ||
+        isEnded() ||
+        loading ||
+        saving;
+
+      panelButton.addEventListener("click", function () {
+        setPanelOpen(number, !isOpen);
+      });
+
+      panelButton.style.marginTop = "10px";
+
+      item.append(label, state, textarea, panelButton);
+      panelList.appendChild(item);
+    }
+  }
+
+  async function setPanelOpen(panelNumber, isOpen) {
+    if (loading || saving || isEnded()) return;
+
+    if (!challenge || !challenge.is_started) {
+      showMessage(
+        "チャレンジを開始してから操作してください。",
+        "error"
       );
+      return;
     }
 
-    challenge = refreshResult.challenge || challenge;
-    panels = Array.isArray(refreshResult.panels)
-      ? refreshResult.panels
-      : [];
+    const buttons = panelList.querySelectorAll("button");
 
-    renderPanels();
+    buttons.forEach(function (button) {
+      button.disabled = true;
+    });
 
     showMessage(
       isOpen
-        ? "マス " + panelNumber + " を開きました！"
-        : "マス " + panelNumber + " を閉じました。",
-      "success"
+        ? "パネルを開いています..."
+        : "パネルを閉じています..."
     );
-  } catch (error) {
-    showMessage(
-      error.message || "パネルの操作に失敗しました。",
-      "error"
-    );
-  } finally {
-    // 最新状態を取得できたかどうかにかかわらず、
-    // 現在の画面状態に合わせてボタンを再描画する
-    renderPanels();
-  }
-}
 
+    try {
+      const response = await fetch("/api/challenge", {
+        method: "PATCH",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "set-panel",
+          panel_number: panelNumber,
+          is_open: isOpen
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(
+          result.error || "パネルの状態を変更できませんでした。"
+        );
+      }
+
+      const refreshResponse = await fetch("/api/challenge", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const refreshResult = await refreshResponse.json();
+
+      if (!refreshResponse.ok || refreshResult.ok !== true) {
+        throw new Error(
+          refreshResult.error || "パネル情報を再取得できませんでした。"
+        );
+      }
+
+      challenge = refreshResult.challenge || challenge;
+      panels = Array.isArray(refreshResult.panels)
+        ? refreshResult.panels
+        : [];
+
+      renderPanels();
+      updateControls();
+
+      showMessage(
+        isOpen
+          ? "マス " + panelNumber + " を開きました！"
+          : "マス " + panelNumber + " を閉じました。",
+        "success"
+      );
+    } catch (error) {
+      showMessage(
+        error.message || "パネルの操作に失敗しました。",
+        "error"
+      );
+
+      await loadChallenge();
+    }
+  }
 
   function setBusy(isBusy) {
-    saveButton.disabled = isBusy;
-    reloadButton.disabled = isBusy;
-    titleInput.disabled = isBusy;
-
-    const gridLocked = Boolean(challenge && challenge.is_started);
-    rowsInput.disabled = isBusy || gridLocked;
-    columnsInput.disabled = isBusy || gridLocked;
+    loading = isBusy;
+    saving = isBusy;
+    updateControls();
 
     panelList.querySelectorAll("textarea").forEach(function (input) {
-      input.disabled = isBusy;
+      input.disabled = isBusy || isEnded();
+    });
+
+    panelList.querySelectorAll("button").forEach(function (button) {
+      button.disabled =
+        isBusy ||
+        isEnded() ||
+        !challenge ||
+        !challenge.is_started;
     });
   }
 
@@ -723,7 +773,7 @@ async function setPanelOpen(panelNumber, isOpen) {
     if (loading || saving) return;
 
     loading = true;
-    setBusy(true);
+    updateControls();
     showMessage("設定を読み込んでいます...");
 
     try {
@@ -744,6 +794,7 @@ async function setPanelOpen(panelNumber, isOpen) {
 
       challenge = result.challenge || null;
       panels = Array.isArray(result.panels) ? result.panels : [];
+
       displayCharacterImage(challenge ? challenge.image_url : null);
 
       titleInput.value = challenge
@@ -758,17 +809,33 @@ async function setPanelOpen(panelNumber, isOpen) {
         challenge ? challenge.grid_columns : 3
       );
 
-      statusBadge.textContent = challenge
-        ? (challenge.is_started ? "チャレンジ中" : "開始前")
-        : "未作成";
+      if (challenge && challenge.is_ended) {
+        statusBadge.textContent = "チャレンジ終了";
+        statusBadge.classList.add("ended");
+      } else if (challenge && challenge.is_started) {
+        statusBadge.textContent = "チャレンジ中";
+        statusBadge.classList.remove("ended");
+      } else {
+        statusBadge.textContent = challenge ? "開始前" : "未作成";
+        statusBadge.classList.remove("ended");
+      }
 
       renderPanels();
-      showMessage(
-        challenge
-          ? "保存済みの設定を読み込みました。"
-          : "まだチャレンジはありません。設定して保存してください。",
-        "success"
-      );
+      updateControls();
+
+      if (isEnded()) {
+        showMessage(
+          "このチャレンジは終了しています。設定変更や再開はできません。",
+          "success"
+        );
+      } else {
+        showMessage(
+          challenge
+            ? "保存済みの設定を読み込みました。"
+            : "まだチャレンジはありません。設定して保存してください。",
+          "success"
+        );
+      }
     } catch (error) {
       showMessage(
         error.message || "読み込みに失敗しました。",
@@ -776,12 +843,13 @@ async function setPanelOpen(panelNumber, isOpen) {
       );
     } finally {
       loading = false;
-      setBusy(false);
+      updateControls();
+      renderPanels();
     }
   }
 
   async function saveChallenge() {
-    if (saving || loading) return;
+    if (saving || loading || isEnded()) return;
 
     const title = titleInput.value.trim();
     const rows = getRows();
@@ -816,7 +884,7 @@ async function setPanelOpen(panelNumber, isOpen) {
     }
 
     saving = true;
-    setBusy(true);
+    updateControls();
     showMessage("設定を保存しています...");
 
     try {
@@ -847,29 +915,22 @@ async function setPanelOpen(panelNumber, isOpen) {
         throw new Error(result.error || "設定を保存できませんでした");
       }
 
-      challenge = result.challenge || challenge;
-      panels = Array.isArray(result.panels) ? result.panels : [];
-
-      statusBadge.textContent = challenge && challenge.is_started
-        ? "チャレンジ中"
-        : "開始前";
-
-      renderPanels();
+      await loadChallenge();
       showMessage("設定を保存しました！", "success");
     } catch (error) {
       showMessage(
         (error.message || "保存に失敗しました。") +
-        " 入力内容は画面に残しています。"
-      , "error");
+        " 入力内容は画面に残しています。",
+        "error"
+      );
     } finally {
       saving = false;
-      setBusy(false);
+      updateControls();
     }
   }
 
-  
   async function uploadCharacterImage() {
-    if (uploadingImage || loading || saving) return;
+    if (uploadingImage || loading || saving || isEnded()) return;
 
     const file = imageInput.files && imageInput.files[0];
 
@@ -879,8 +940,7 @@ async function setPanelOpen(panelNumber, isOpen) {
     }
 
     uploadingImage = true;
-    uploadImageButton.disabled = true;
-    imageInput.disabled = true;
+    updateControls();
     showImageMessage("画像をアップロードしています...");
 
     try {
@@ -914,7 +974,6 @@ async function setPanelOpen(panelNumber, isOpen) {
       imageInput.value = "";
       displayCharacterImage(result.image_url);
 
-      // チャレンジの設定も再読み込みして最新状態に合わせる
       await loadChallenge();
 
       showImageMessage("立ち絵をアップロードしました！", "success");
@@ -926,15 +985,12 @@ async function setPanelOpen(panelNumber, isOpen) {
       );
     } finally {
       uploadingImage = false;
-      uploadImageButton.disabled = false;
-      imageInput.disabled = false;
+      updateControls();
     }
   }
 
-  uploadImageButton.addEventListener("click", uploadCharacterImage);
-
-    async function startChallenge() {
-    if (saving || loading) return;
+  async function startChallenge() {
+    if (saving || loading || isEnded()) return;
 
     if (!challenge) {
       showMessage("先に設定を保存してください。", "error");
@@ -975,20 +1031,77 @@ async function setPanelOpen(panelNumber, isOpen) {
         );
       }
 
-      showMessage("チャレンジを開始しました！", "success");
       await loadChallenge();
+      showMessage("チャレンジを開始しました！", "success");
     } catch (error) {
       showMessage(
         error.message || "開始中にエラーが発生しました。",
         "error"
       );
     } finally {
-      startButton.disabled = false;
+      updateControls();
     }
   }
 
+  async function endChallenge() {
+    if (saving || loading || isEnded()) return;
+
+    if (!challenge || !challenge.is_started) {
+      showMessage("開始済みのチャレンジだけ終了できます。", "error");
+      return;
+    }
+
+    const confirmed = confirm(
+      "本当にチャレンジを終了しますか？\n\n" +
+      "終了すると再開できません。\n" +
+      "最後に開いたマスの状態はそのまま残ります。"
+    );
+
+    if (!confirmed) return;
+
+    endButton.disabled = true;
+    showMessage("チャレンジを終了しています...");
+
+    try {
+      const sessionOk = await checkSession();
+      if (!sessionOk) return;
+
+      const response = await fetch("/api/challenge", {
+        method: "PATCH",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "end"
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(
+          result.error || "チャレンジを終了できませんでした。"
+        );
+      }
+
+      await loadChallenge();
+      showMessage("チャレンジを終了しました！", "success");
+    } catch (error) {
+      showMessage(
+        error.message || "終了中にエラーが発生しました。",
+        "error"
+      );
+      await loadChallenge();
+    } finally {
+      updateControls();
+    }
+  }
+
+  uploadImageButton.addEventListener("click", uploadCharacterImage);
   startButton.addEventListener("click", startChallenge);
-  
+  endButton.addEventListener("click", endChallenge);
 
   rowsInput.addEventListener("change", renderPanels);
   columnsInput.addEventListener("change", renderPanels);
@@ -1026,6 +1139,7 @@ async function setPanelOpen(panelNumber, isOpen) {
     }
   );
 
+  applyImageAdjustments();
   renderPanels();
   loadChallenge();
 })();
