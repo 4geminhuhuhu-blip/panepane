@@ -397,35 +397,55 @@ async function saveChallenge(request, env, streamerId) {
         }, 502);
       }
     }
-  } else if (panelsToSave.length > 0) {
-    const response = await fetch(panelsUrl, {
-      method: "POST",
-      headers: supabaseHeaders(env, {
-        Prefer: "resolution=merge-duplicates,return=minimal",
-      }),
-      body: JSON.stringify(panelsToSave),
-    });
 
-    if (!response.ok) {
-      console.error(
-        "Panel save failed:",
-        response.status,
-        await response.text()
+  } else if (panelsToSave.length > 0) {
+    for (const panel of panelsToSave) {
+      const url = supabaseUrl(env, "challenge_panels");
+      url.searchParams.set("challenge_id", `eq.${challenge.id}`);
+      url.searchParams.set("panel_number", `eq.${panel.panel_number}`);
+
+      const existingPanel = currentPanels.find(
+        (item) => item.panel_number === panel.panel_number
       );
-      return json({
-        ok: false,
-        error: "パネル条件を保存できませんでした",
-      }, 502);
+
+      let response;
+
+      if (existingPanel) {
+        response = await fetch(url, {
+          method: "PATCH",
+          headers: supabaseHeaders(env),
+          body: JSON.stringify({
+            condition_text: panel.condition_text,
+            updated_at: now,
+          }),
+        });
+      } else {
+        response = await fetch(supabaseUrl(env, "challenge_panels"), {
+          method: "POST",
+          headers: supabaseHeaders(env),
+          body: JSON.stringify({
+            challenge_id: challenge.id,
+            panel_number: panel.panel_number,
+            condition_text: panel.condition_text,
+            is_open: false,
+            updated_at: now,
+          }),
+        });
+      }
+
+      if (!response.ok) {
+        console.error(
+          "Panel save failed:",
+          response.status,
+          await response.text()
+        );
+        return json({
+          ok: false,
+          error: "パネル条件を保存できませんでした",
+        }, 502);
+      }
     }
   }
-  const savedPanels = await getPanels(challenge.id, env);
-
-  return json({
-    ok: true,
-    challenge,
-    panels: savedPanels,
-  });
-}
 
 export async function onRequest({ request, env }) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
