@@ -117,7 +117,10 @@ async function uploadImage(request, env, streamerId) {
     "/rest/v1/challenges",
     env.SUPABASE_URL
   );
-  challengeUrl.searchParams.set("select", "id,image_url,is_started");
+  challengeUrl.searchParams.set(
+    "select",
+    "id,image_url,is_started,is_ended"
+  );
   challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
   challengeUrl.searchParams.set("limit", "1");
 
@@ -136,6 +139,14 @@ async function uploadImage(request, env, streamerId) {
     return json({
       ok: false,
       error: "先にチャレンジの設定を保存してください",
+    }, 409);
+  }
+
+  // 終了済みのチャレンジでは画像を変更できない
+  if (challenge.is_ended === true) {
+    return json({
+      ok: false,
+      error: "終了済みのチャレンジでは画像を変更できません",
     }, 409);
   }
 
@@ -188,6 +199,7 @@ async function uploadImage(request, env, streamerId) {
   ).toString();
 
   // アップロード成功後に、チャレンジの画像URLを更新
+  // 開始・終了状態も条件にして、状態変更後の更新を防ぐ
   const updateUrl = new URL(
     "/rest/v1/challenges",
     env.SUPABASE_URL
@@ -195,6 +207,7 @@ async function uploadImage(request, env, streamerId) {
   updateUrl.searchParams.set("id", `eq.${challenge.id}`);
   updateUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
   updateUrl.searchParams.set("is_started", "eq.false");
+  updateUrl.searchParams.set("is_ended", "eq.false");
 
   const updateResponse = await fetch(updateUrl, {
     method: "PATCH",
