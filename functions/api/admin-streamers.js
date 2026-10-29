@@ -173,3 +173,4 @@ export async function onRequest({ request, env }) {
       { status: 502, headers }
     );
   }
+}
