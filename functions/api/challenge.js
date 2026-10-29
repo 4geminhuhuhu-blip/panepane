@@ -46,7 +46,9 @@ async function getStreamerId(request, env) {
     },
   });
 
-  if (!response.ok) throw new Error("Session lookup failed");
+  if (!response.ok) {
+    throw new Error("Session lookup failed");
+  }
 
   const sessions = await response.json();
   const session = sessions[0];
@@ -78,17 +80,6 @@ function supabaseHeaders(env, extra = {}) {
   };
 }
 
-async function readJson(response) {
-  const text = await response.text();
-  if (!text) return null;
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-}
-
 async function getChallenge(streamerId, env) {
   const url = supabaseUrl(env, "challenges");
   url.searchParams.set("select", "*");
@@ -99,7 +90,9 @@ async function getChallenge(streamerId, env) {
     headers: supabaseHeaders(env),
   });
 
-  if (!response.ok) throw new Error("Could not load challenge");
+  if (!response.ok) {
+    throw new Error("Could not load challenge");
+  }
 
   const rows = await response.json();
   return rows[0] || null;
@@ -115,7 +108,9 @@ async function getPanels(challengeId, env) {
     headers: supabaseHeaders(env),
   });
 
-  if (!response.ok) throw new Error("Could not load panels");
+  if (!response.ok) {
+    throw new Error("Could not load panels");
+  }
 
   return response.json();
 }
@@ -137,7 +132,7 @@ async function saveChallenge(request, env, streamerId) {
   const rows = body.grid_rows;
   const columns = body.grid_columns;
 
-    const imagePositionX = Number(body.image_position_x ?? 0);
+  const imagePositionX = Number(body.image_position_x ?? 0);
   const imagePositionY = Number(body.image_position_y ?? 0);
   const imageScale = Number(body.image_scale ?? 100);
 
@@ -236,8 +231,10 @@ async function saveChallenge(request, env, streamerId) {
   if (
     existing &&
     existing.is_started &&
-    (existing.grid_rows !== rows ||
-      existing.grid_columns !== columns)
+    (
+      existing.grid_rows !== rows ||
+      existing.grid_columns !== columns
+    )
   ) {
     return json({
       ok: false,
@@ -246,7 +243,6 @@ async function saveChallenge(request, env, streamerId) {
   }
 
   const now = new Date().toISOString();
-
   let challenge = existing;
 
   if (!challenge) {
@@ -270,8 +266,12 @@ async function saveChallenge(request, env, streamerId) {
     });
 
     if (!response.ok) {
-      const detail = await response.text();
-      console.error("Challenge creation failed:", response.status, detail);
+      console.error(
+        "Challenge creation failed:",
+        response.status,
+        await response.text()
+      );
+
       return json({
         ok: false,
         error: "チャレンジを作成できませんでした",
@@ -314,6 +314,7 @@ async function saveChallenge(request, env, streamerId) {
         response.status,
         await response.text()
       );
+
       return json({
         ok: false,
         error: "チャレンジを保存できませんでした",
@@ -324,13 +325,22 @@ async function saveChallenge(request, env, streamerId) {
     challenge = updated[0] || challenge;
   }
 
-  const currentPanels = await getPanels(challenge.id, env);
+  let currentPanels = await getPanels(challenge.id, env);
 
-  if (existing && !existing.is_started &&
-      (existing.grid_rows !== rows ||
-       existing.grid_columns !== columns)) {
+  const gridChanged =
+    existing &&
+    !existing.is_started &&
+    (
+      existing.grid_rows !== rows ||
+      existing.grid_columns !== columns
+    );
+
+  if (gridChanged) {
     const deleteUrl = supabaseUrl(env, "challenge_panels");
-    deleteUrl.searchParams.set("challenge_id", `eq.${challenge.id}`);
+    deleteUrl.searchParams.set(
+      "challenge_id",
+      `eq.${challenge.id}`
+    );
 
     const deleteResponse = await fetch(deleteUrl, {
       method: "DELETE",
@@ -338,11 +348,20 @@ async function saveChallenge(request, env, streamerId) {
     });
 
     if (!deleteResponse.ok) {
+      console.error(
+        "Panel deletion failed:",
+        deleteResponse.status,
+        await deleteResponse.text()
+      );
+
       return json({
         ok: false,
         error: "パネル構成を更新できませんでした",
       }, 502);
     }
+
+    // グリッドを変更したため、既存パネルはなくなったものとして扱う
+    currentPanels = [];
   }
 
   const panelsToSave = [];
@@ -352,34 +371,29 @@ async function saveChallenge(request, env, streamerId) {
       (panel) => panel.panel_number === number
     );
 
-    if (oldPanel?.is_open) {
-      panelsToSave.push({
-        id: oldPanel.id,
-        challenge_id: challenge.id,
-        panel_number: number,
-        condition_text: conditionMap.get(number),
-        is_open: true,
-        opened_at: oldPanel.opened_at,
-        updated_at: now,
-      });
-    } else {
-      panelsToSave.push({
-        challenge_id: challenge.id,
-        panel_number: number,
-        condition_text: conditionMap.get(number),
-        is_open: false,
-        updated_at: now,
-      });
-    }
+    panelsToSave.push({
+      id: oldPanel?.id,
+      challenge_id: challenge.id,
+      panel_number: number,
+      condition_text: conditionMap.get(number),
+      is_open: oldPanel?.is_open ?? false,
+      opened_at: oldPanel?.opened_at ?? null,
+      updated_at: now,
+    });
   }
 
-  const panelsUrl = supabaseUrl(env, "challenge_panels");
-
   if (existing && existing.is_started) {
+    // 開始後は条件文だけを更新し、開放状態は変更しない
     for (const panel of panelsToSave) {
       const url = supabaseUrl(env, "challenge_panels");
-      url.searchParams.set("challenge_id", `eq.${challenge.id}`);
-      url.searchParams.set("panel_number", `eq.${panel.panel_number}`);
+      url.searchParams.set(
+        "challenge_id",
+        `eq.${challenge.id}`
+      );
+      url.searchParams.set(
+        "panel_number",
+        `eq.${panel.panel_number}`
+      );
 
       const response = await fetch(url, {
         method: "PATCH",
@@ -391,19 +405,21 @@ async function saveChallenge(request, env, streamerId) {
       });
 
       if (!response.ok) {
+        console.error(
+          "Panel condition update failed:",
+          response.status,
+          await response.text()
+        );
+
         return json({
           ok: false,
           error: "パネル条件を保存できませんでした",
         }, 502);
       }
     }
-
-  } else if (panelsToSave.length > 0) {
+  } else {
+    // 開始前は既存パネルを更新し、存在しないパネルだけ追加する
     for (const panel of panelsToSave) {
-      const url = supabaseUrl(env, "challenge_panels");
-      url.searchParams.set("challenge_id", `eq.${challenge.id}`);
-      url.searchParams.set("panel_number", `eq.${panel.panel_number}`);
-
       const existingPanel = currentPanels.find(
         (item) => item.panel_number === panel.panel_number
       );
@@ -411,6 +427,16 @@ async function saveChallenge(request, env, streamerId) {
       let response;
 
       if (existingPanel) {
+        const url = supabaseUrl(env, "challenge_panels");
+        url.searchParams.set(
+          "challenge_id",
+          `eq.${challenge.id}`
+        );
+        url.searchParams.set(
+          "panel_number",
+          `eq.${panel.panel_number}`
+        );
+
         response = await fetch(url, {
           method: "PATCH",
           headers: supabaseHeaders(env),
@@ -420,7 +446,9 @@ async function saveChallenge(request, env, streamerId) {
           }),
         });
       } else {
-        response = await fetch(supabaseUrl(env, "challenge_panels"), {
+        const url = supabaseUrl(env, "challenge_panels");
+
+        response = await fetch(url, {
           method: "POST",
           headers: supabaseHeaders(env),
           body: JSON.stringify({
@@ -439,12 +467,14 @@ async function saveChallenge(request, env, streamerId) {
           response.status,
           await response.text()
         );
+
         return json({
           ok: false,
           error: "パネル条件を保存できませんでした",
         }, 502);
       }
     }
+  }
 
   const savedPanels = await getPanels(challenge.id, env);
 
@@ -457,25 +487,40 @@ async function saveChallenge(request, env, streamerId) {
 
 export async function onRequest({ request, env }) {
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
-    return json({ ok: false, error: "Server configuration error" }, 500);
+    return json({
+      ok: false,
+      error: "Server configuration error",
+    }, 500);
   }
 
   try {
     const streamerId = await getStreamerId(request, env);
 
     if (!streamerId) {
-      return json({ ok: false, error: "Not authenticated" }, 401);
+      return json({
+        ok: false,
+        error: "Not authenticated",
+      }, 401);
     }
 
     if (request.method === "GET") {
       const challenge = await getChallenge(streamerId, env);
 
       if (!challenge) {
-        return json({ ok: true, challenge: null, panels: [] });
+        return json({
+          ok: true,
+          challenge: null,
+          panels: [],
+        });
       }
 
       const panels = await getPanels(challenge.id, env);
-      return json({ ok: true, challenge, panels });
+
+      return json({
+        ok: true,
+        challenge,
+        panels,
+      });
     }
 
     if (request.method === "POST") {
@@ -488,6 +533,10 @@ export async function onRequest({ request, env }) {
     }, 405);
   } catch (error) {
     console.error("Challenge API error:", error);
-    return json({ ok: false, error: "Internal server error" }, 500);
+
+    return json({
+      ok: false,
+      error: "Internal server error",
+    }, 500);
   }
 }
