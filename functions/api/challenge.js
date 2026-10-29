@@ -56,9 +56,9 @@ async function getStreamerId(request, env) {
 }
 
 export async function onRequest({ request, env }) {
-  if (!["GET", "POST"].includes(request.method)) {
-    return json({ ok: false, error: "Method not allowed" }, 405);
-  }
+if (!["GET", "POST", "PATCH"].includes(request.method)) {
+  return json({ ok: false, error: "Method not allowed" }, 405);
+}
 
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
     return json({ ok: false, error: "Server configuration error" }, 500);
@@ -128,6 +128,58 @@ export async function onRequest({ request, env }) {
       });
     }
 
+    if (request.method === "PATCH") {
+  const body = await request.json();
+
+  if (body.action !== "start") {
+    return json(
+      { ok: false, error: "不正な操作です。" },
+      400
+    );
+  }
+
+  const challengeUrl = new URL(
+    `${baseUrl}/rest/v1/challenges`
+  );
+
+  challengeUrl.searchParams.set(
+    "streamer_id",
+    `eq.${streamerId}`
+  );
+
+  const response = await fetch(challengeUrl, {
+    method: "PATCH",
+    headers: {
+      ...headers,
+      Prefer: "return=representation",
+    },
+    body: JSON.stringify({
+      is_started: true,
+    }),
+  });
+
+  if (!response.ok) {
+    return json(
+      { ok: false, error: "チャレンジを開始できませんでした。" },
+      502
+    );
+  }
+
+  const updated = await response.json();
+
+  if (!updated.length) {
+    return json(
+      { ok: false, error: "チャレンジが見つかりません。" },
+      404
+    );
+  }
+
+  return json({
+    ok: true,
+    message: "チャレンジを開始しました。",
+  });
+}
+    
     const body = await request.json();
 
     const title = typeof body.title === "string" ? body.title.trim() : "";
