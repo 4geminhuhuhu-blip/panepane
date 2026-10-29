@@ -162,10 +162,14 @@ export async function onRequest({ request, env }) {
       JSON.stringify({ ok: true, login_id: loginId }),
       { status: 201, headers }
     );
-  } catch {
+  } catch (error) {
+    console.error("Account creation error:", error);
+
     return new Response(
-      JSON.stringify({ ok: false, error: "Account creation service unavailable" }),
+      JSON.stringify({
+        ok: false,
+        error: "Account creation service unavailable",
+      }),
       { status: 502, headers }
     );
   }
-}
