@@ -101,11 +101,11 @@
       color: #333;
     }
 
-      .panel.open {
-        background: transparent !important;
-        color: transparent;
-        border: none;
-      }
+    .panel.open {
+      background: transparent !important;
+      color: transparent;
+      border: none;
+    }
 
     .message {
       text-align: center;
@@ -237,10 +237,11 @@
           `${openedCount} / ${total} 枚オープン（${percent}%）`;
         progressBar.style.width = percent + "%";
 
-        if (challenge.is_started) {
-          statusEl.textContent = challenge.ended_at
-            ? "チャレンジ終了"
-            : "チャレンジ中";
+        // チャレンジの状態を表示
+        if (challenge.is_ended === true) {
+          statusEl.textContent = "チャレンジ終了";
+        } else if (challenge.is_started === true) {
+          statusEl.textContent = "チャレンジ中";
         } else {
           statusEl.textContent = "開始前";
         }
