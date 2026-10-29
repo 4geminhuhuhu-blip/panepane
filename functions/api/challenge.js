@@ -112,7 +112,7 @@ export async function onRequest({ request, env }) {
 
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started"
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended"
     );
 
     challengeUrl.searchParams.set(
@@ -192,7 +192,7 @@ export async function onRequest({ request, env }) {
     }
 
     // ========================================
-    // PATCH：チャレンジ開始・パネル開閉
+    // PATCH：チャレンジ開始・終了・パネル開閉
     // ========================================
     if (request.method === "PATCH") {
       let body;
@@ -210,6 +210,49 @@ export async function onRequest({ request, env }) {
       }
 
       // ----------------------------------------
+      // チャレンジ情報を取得する共通処理
+      // ----------------------------------------
+      const currentResponse = await fetch(challengeUrl, {
+        headers,
+      });
+
+      if (!currentResponse.ok) {
+        return json(
+          {
+            ok: false,
+            error: "チャレンジ情報を取得できませんでした。",
+          },
+          502
+        );
+      }
+
+      const currentList = await currentResponse.json();
+      const current = currentList[0];
+
+      if (!current) {
+        return json(
+          {
+            ok: false,
+            error: "チャレンジが見つかりません。",
+          },
+          404
+        );
+      }
+
+      // ----------------------------------------
+      // 終了済みチャレンジの操作を禁止
+      // ----------------------------------------
+      if (current.is_ended === true) {
+        return json(
+          {
+            ok: false,
+            error: "このチャレンジは終了しています。再開できません。",
+          },
+          400
+        );
+      }
+
+      // ----------------------------------------
       // チャレンジ開始
       // ----------------------------------------
       if (body.action === "start") {
@@ -218,8 +261,18 @@ export async function onRequest({ request, env }) {
         );
 
         startUrl.searchParams.set(
+          "id",
+          `eq.${current.id}`
+        );
+
+        startUrl.searchParams.set(
           "streamer_id",
           `eq.${streamerId}`
+        );
+
+        startUrl.searchParams.set(
+          "is_ended",
+          "eq.false"
         );
 
         const response = await fetch(startUrl, {
@@ -249,15 +302,87 @@ export async function onRequest({ request, env }) {
           return json(
             {
               ok: false,
-              error: "チャレンジが見つかりません。",
+              error: "チャレンジを開始できませんでした。",
             },
-            404
+            400
           );
         }
 
         return json({
           ok: true,
           message: "チャレンジを開始しました。",
+        });
+      }
+
+      // ----------------------------------------
+      // チャレンジ終了
+      // ----------------------------------------
+      if (body.action === "end") {
+        if (!current.is_started) {
+          return json(
+            {
+              ok: false,
+              error: "開始前のチャレンジは終了できません。",
+            },
+            400
+          );
+        }
+
+        const endUrl = new URL(
+          `${baseUrl}/rest/v1/challenges`
+        );
+
+        endUrl.searchParams.set(
+          "id",
+          `eq.${current.id}`
+        );
+
+        endUrl.searchParams.set(
+          "streamer_id",
+          `eq.${streamerId}`
+        );
+
+        endUrl.searchParams.set(
+          "is_ended",
+          "eq.false"
+        );
+
+        const response = await fetch(endUrl, {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            is_ended: true,
+          }),
+        });
+
+        if (!response.ok) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジを終了できませんでした。",
+            },
+            502
+          );
+        }
+
+        const updated = await response.json();
+
+        if (!updated.length) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジはすでに終了している可能性があります。",
+            },
+            400
+          );
+        }
+
+        return json({
+          ok: true,
+          message: "チャレンジを終了しました。",
         });
       }
 
@@ -281,36 +406,7 @@ export async function onRequest({ request, env }) {
           );
         }
 
-        // 配信者本人のチャレンジを取得
-        const challengeResponse = await fetch(
-          challengeUrl,
-          { headers }
-        );
-
-        if (!challengeResponse.ok) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジ情報を取得できませんでした。",
-            },
-            502
-          );
-        }
-
-        const challenges = await challengeResponse.json();
-        const challenge = challenges[0];
-
-        if (!challenge) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジが見つかりません。",
-            },
-            404
-          );
-        }
-
-        if (!challenge.is_started) {
+        if (!current.is_started) {
           return json(
             {
               ok: false,
@@ -323,7 +419,7 @@ export async function onRequest({ request, env }) {
 
         if (
           panelNumber >
-          challenge.grid_rows * challenge.grid_columns
+          current.grid_rows * current.grid_columns
         ) {
           return json(
             {
@@ -341,7 +437,7 @@ export async function onRequest({ request, env }) {
 
         panelUrl.searchParams.set(
           "challenge_id",
-          `eq.${challenge.id}`
+          `eq.${current.id}`
         );
 
         panelUrl.searchParams.set(
@@ -464,6 +560,17 @@ export async function onRequest({ request, env }) {
     const existingList = await existingResponse.json();
     const existing = existingList[0];
 
+    // 終了済みチャレンジの設定変更を禁止
+    if (existing?.is_ended === true) {
+      return json(
+        {
+          ok: false,
+          error: "終了したチャレンジの設定は変更できません。",
+        },
+        400
+      );
+    }
+
     const challengeData = {
       streamer_id: streamerId,
       title,
@@ -491,6 +598,11 @@ export async function onRequest({ request, env }) {
       updateUrl.searchParams.set(
         "streamer_id",
         `eq.${streamerId}`
+      );
+
+      updateUrl.searchParams.set(
+        "is_ended",
+        "eq.false"
       );
 
       const updateResponse = await fetch(updateUrl, {
