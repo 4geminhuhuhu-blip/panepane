@@ -137,6 +137,27 @@ async function saveChallenge(request, env, streamerId) {
   const rows = body.grid_rows;
   const columns = body.grid_columns;
 
+    const imagePositionX = Number(body.image_position_x ?? 0);
+  const imagePositionY = Number(body.image_position_y ?? 0);
+  const imageScale = Number(body.image_scale ?? 100);
+
+  if (
+    !Number.isFinite(imagePositionX) ||
+    !Number.isFinite(imagePositionY) ||
+    !Number.isFinite(imageScale) ||
+    imagePositionX < -100 ||
+    imagePositionX > 100 ||
+    imagePositionY < -100 ||
+    imagePositionY > 100 ||
+    imageScale < 50 ||
+    imageScale > 200
+  ) {
+    return json({
+      ok: false,
+      error: "画像の位置または大きさが正しくありません",
+    }, 400);
+  }
+
   if (
     !Number.isInteger(rows) ||
     !Number.isInteger(columns) ||
@@ -241,6 +262,9 @@ async function saveChallenge(request, env, streamerId) {
         title,
         grid_rows: rows,
         grid_columns: columns,
+        image_position_x: imagePositionX,
+        image_position_y: imagePositionY,
+        image_scale: imageScale,
         updated_at: now,
       }),
     });
@@ -277,6 +301,9 @@ async function saveChallenge(request, env, streamerId) {
         title,
         grid_rows: rows,
         grid_columns: columns,
+      　image_position_x: imagePositionX,
+        image_position_y: imagePositionY,
+        image_scale: imageScale,
         updated_at: now,
       }),
     });
