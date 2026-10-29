@@ -534,49 +534,70 @@
   }
 
   function renderPanels() {
-    const count = getRows() * getColumns();
-    const previousValues = new Map();
+    
+function renderPanels() {
+  const count = getRows() * getColumns();
+  const previousValues = new Map();
 
-    panelList.querySelectorAll("textarea").forEach(function (input) {
-      previousValues.set(Number(input.dataset.number), input.value);
+  panelList.querySelectorAll("textarea").forEach(function (input) {
+    previousValues.set(Number(input.dataset.number), input.value);
+  });
+
+  panels.forEach(function (panel) {
+    previousValues.set(
+      panel.panel_number,
+      panel.condition_text || ""
+    );
+  });
+
+  panelList.replaceChildren();
+  panelCount.textContent = count + "マス";
+
+  for (let number = 1; number <= count; number++) {
+    const item = document.createElement("div");
+    item.className = "panel-item";
+
+    const label = document.createElement("label");
+    label.htmlFor = "panel-" + number;
+    label.textContent = "マス " + number;
+
+    const panel = panels.find(function (p) {
+      return Number(p.panel_number) === number;
     });
 
-    panels.forEach(function (panel) {
-      previousValues.set(panel.panel_number, panel.condition_text || "");
+    const isOpen = Boolean(panel && panel.is_open);
+
+    const state = document.createElement("div");
+    state.className = "panel-state";
+    state.textContent = isOpen ? "開放済み" : "未開放";
+
+    const textarea = document.createElement("textarea");
+    textarea.id = "panel-" + number;
+    textarea.dataset.number = String(number);
+    textarea.maxLength = 500;
+    textarea.placeholder = "このマスを開放する条件を入力";
+    textarea.value = previousValues.get(number) || "";
+
+    const panelButton = document.createElement("button");
+    panelButton.type = "button";
+    panelButton.textContent = isOpen ? "閉じる" : "開く";
+    panelButton.className = isOpen
+      ? "secondary-button"
+      : "";
+
+    panelButton.disabled = !challenge || !challenge.is_started;
+
+    panelButton.addEventListener("click", function () {
+      setPanelOpen(number, !isOpen);
     });
 
-    panelList.replaceChildren();
-    panelCount.textContent = count + "マス";
+    panelButton.style.marginTop = "10px";
 
-    for (let number = 1; number <= count; number++) {
-      const item = document.createElement("div");
-      item.className = "panel-item";
-
-      const label = document.createElement("label");
-      label.htmlFor = "panel-" + number;
-      label.textContent = "マス " + number;
-
-      const panel = panels.find(function (p) {
-        return p.panel_number === number;
-      });
-
-      const state = document.createElement("div");
-      state.className = "panel-state";
-      state.textContent = panel && panel.is_open
-        ? "開放済み"
-        : "未開放";
-
-      const textarea = document.createElement("textarea");
-      textarea.id = "panel-" + number;
-      textarea.dataset.number = String(number);
-      textarea.maxLength = 500;
-      textarea.placeholder = "このマスを開放する条件を入力";
-      textarea.value = previousValues.get(number) || "";
-
-      item.append(label, state, textarea);
-      panelList.appendChild(item);
-    }
+    item.append(label, state, textarea, panelButton);
+    panelList.appendChild(item);
   }
+}
+
 
   function setBusy(isBusy) {
     saveButton.disabled = isBusy;
