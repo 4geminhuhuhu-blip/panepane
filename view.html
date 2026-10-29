@@ -201,7 +201,7 @@
             "translate(" +
             (Number(challenge.image_position_x) || 0) + "px, " +
             (Number(challenge.image_position_y) || 0) + "px) " +
-            "scale(" + (Number(challenge.image_scale) || 1) + ")";
+            "scale(" + ((Number(challenge.image_scale) || 100) / 100) + ")";
           imageEl.onerror = () => {
             showError("立ち絵を読み込めませんでした。");
           };
