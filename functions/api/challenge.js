@@ -301,7 +301,7 @@ async function saveChallenge(request, env, streamerId) {
         title,
         grid_rows: rows,
         grid_columns: columns,
-      　image_position_x: imagePositionX,
+        image_position_x: imagePositionX,
         image_position_y: imagePositionY,
         image_scale: imageScale,
         updated_at: now,
