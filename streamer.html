@@ -309,6 +309,49 @@
         </div>
       </div>
 
+      
+      <div class="image-adjust-controls">
+        <label for="image-scale">
+          画像の大きさ
+          <span id="image-scale-value" class="image-adjust-value">100%</span>
+        </label>
+        <input
+          id="image-scale"
+          type="range"
+          min="50"
+          max="200"
+          value="100"
+          step="5"
+        >
+
+        <label for="image-x">
+          左右の位置
+          <span id="image-x-value" class="image-adjust-value">0</span>
+        </label>
+        <input
+          id="image-x"
+          type="range"
+          min="-100"
+          max="100"
+          value="0"
+          step="1"
+        >
+
+        <label for="image-y">
+          上下の位置
+          <span id="image-y-value" class="image-adjust-value">0</span>
+        </label>
+        <input
+          id="image-y"
+          type="range"
+          min="-100"
+          max="100"
+          value="0"
+          step="1"
+        >
+      </div>
+
+
       <div class="actions">
         <button id="upload-image-button" type="button">
           立ち絵をアップロード
