@@ -533,8 +533,6 @@
     return Number(columnsInput.value);
   }
 
-  function renderPanels() {
-    
 function renderPanels() {
   const count = getRows() * getColumns();
   const previousValues = new Map();
@@ -595,6 +593,93 @@ function renderPanels() {
 
     item.append(label, state, textarea, panelButton);
     panelList.appendChild(item);
+  }
+}
+
+
+async function setPanelOpen(panelNumber, isOpen) {
+  if (loading || saving) return;
+
+  if (!challenge || !challenge.is_started) {
+    showMessage(
+      "チャレンジを開始してから操作してください。",
+      "error"
+    );
+    return;
+  }
+
+  const buttons = panelList.querySelectorAll("button");
+
+  buttons.forEach(function (button) {
+    button.disabled = true;
+  });
+
+  showMessage(
+    isOpen
+      ? "パネルを開いています..."
+      : "パネルを閉じています..."
+  );
+
+  try {
+    const response = await fetch("/api/challenge", {
+      method: "PATCH",
+      credentials: "same-origin",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        action: "set-panel",
+        panel_number: panelNumber,
+        is_open: isOpen
+      })
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.ok !== true) {
+      throw new Error(
+        result.error || "パネルの状態を変更できませんでした。"
+      );
+    }
+
+    // サーバーから最新のパネル状態を読み直す
+    const refreshResponse = await fetch("/api/challenge", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    const refreshResult = await refreshResponse.json();
+
+    if (!refreshResponse.ok || refreshResult.ok !== true) {
+      throw new Error(
+        refreshResult.error || "パネル情報を再取得できませんでした。"
+      );
+    }
+
+    challenge = refreshResult.challenge || challenge;
+    panels = Array.isArray(refreshResult.panels)
+      ? refreshResult.panels
+      : [];
+
+    renderPanels();
+
+    showMessage(
+      isOpen
+        ? "マス " + panelNumber + " を開きました！"
+        : "マス " + panelNumber + " を閉じました。",
+      "success"
+    );
+  } catch (error) {
+    showMessage(
+      error.message || "パネルの操作に失敗しました。",
+      "error"
+    );
+  } finally {
+    // 最新状態を取得できたかどうかにかかわらず、
+    // 現在の画面状態に合わせてボタンを再描画する
+    renderPanels();
   }
 }
 
