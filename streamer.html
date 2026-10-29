@@ -411,6 +411,33 @@
   const imagePlaceholder = document.getElementById("character-image-placeholder");
   const uploadImageButton = document.getElementById("upload-image-button");
   const imageMessage = document.getElementById("image-message");
+  
+  const imageScaleInput = document.getElementById("image-scale");
+  const imageXInput = document.getElementById("image-x");
+  const imageYInput = document.getElementById("image-y");
+
+  const imageScaleValue = document.getElementById("image-scale-value");
+  const imageXValue = document.getElementById("image-x-value");
+  const imageYValue = document.getElementById("image-y-value");
+
+  function applyImageAdjustments() {
+    const scale = Number(imageScaleInput.value);
+    const x = Number(imageXInput.value);
+    const y = Number(imageYInput.value);
+
+    imagePreview.style.objectFit = "contain";
+    imagePreview.style.transform =
+      "translate(" + x + "px, " + y + "px) scale(" + (scale / 100) + ")";
+
+    imageScaleValue.textContent = scale + "%";
+    imageXValue.textContent = x;
+    imageYValue.textContent = y;
+  }
+
+  imageScaleInput.addEventListener("input", applyImageAdjustments);
+  imageXInput.addEventListener("input", applyImageAdjustments);
+  imageYInput.addEventListener("input", applyImageAdjustments);
+
 
   let uploadingImage = false;
   let previewObjectUrl = null;
