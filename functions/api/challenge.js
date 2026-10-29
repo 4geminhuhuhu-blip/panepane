@@ -445,7 +445,14 @@ async function saveChallenge(request, env, streamerId) {
         }, 502);
       }
     }
-  }
+
+  const savedPanels = await getPanels(challenge.id, env);
+
+  return json({
+    ok: true,
+    challenge,
+    panels: savedPanels,
+  });
 }
 
 export async function onRequest({ request, env }) {
