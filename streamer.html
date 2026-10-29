@@ -151,6 +151,45 @@
       font-size: 13px;
     }
 
+    .image-preview-area {
+      margin-top: 16px;
+    }
+
+    .image-preview-frame {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 3 / 4;
+      margin-top: 10px;
+      border: 1px solid #dbe2ed;
+      border-radius: 10px;
+      background: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .image-preview-frame img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    .image-preview-placeholder {
+      padding: 20px;
+      color: #64748b;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    #image-message {
+      min-height: 24px;
+      margin-top: 12px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
     @media (max-width: 560px) {
       .card { padding: 17px; }
       .panel-list { grid-template-columns: 1fr; }
@@ -218,6 +257,50 @@
       </p>
     </section>
 
+    
+    <section class="card">
+      <h2>立ち絵の設定</h2>
+
+      <p class="hint">
+        PNG・JPEG・WebP形式、5MB以下の画像を選択してください。
+        アップロードした画像は公開チャレンジでも表示されます。
+      </p>
+
+      <label for="character-image">立ち絵画像</label>
+      <input
+        id="character-image"
+        type="file"
+        accept="image/png,image/jpeg,image/webp"
+      >
+
+      <div class="image-preview-area">
+        <strong>画像プレビュー</strong>
+
+        <div class="image-preview-frame">
+          <img
+            id="character-image-preview"
+            alt="立ち絵のプレビュー"
+            hidden
+          >
+          <div
+            id="character-image-placeholder"
+            class="image-preview-placeholder"
+          >
+            まだ立ち絵が登録されていません
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="upload-image-button" type="button">
+          立ち絵をアップロード
+        </button>
+      </div>
+
+      <p id="image-message" role="status" aria-live="polite"></p>
+    </section>
+
+
     <section class="card">
       <h2>マスごとの達成条件</h2>
       <p class="hint">
@@ -261,6 +344,82 @@
   const saveButton = document.getElementById("save-button");
   const reloadButton = document.getElementById("reload-button");
   const message = document.getElementById("message");
+  
+  const imageInput = document.getElementById("character-image");
+  const imagePreview = document.getElementById("character-image-preview");
+  const imagePlaceholder = document.getElementById("character-image-placeholder");
+  const uploadImageButton = document.getElementById("upload-image-button");
+  const imageMessage = document.getElementById("image-message");
+
+  let uploadingImage = false;
+  let previewObjectUrl = null;
+
+  function showImageMessage(text, type) {
+    imageMessage.textContent = text;
+    imageMessage.className = type || "";
+  }
+
+  function displayCharacterImage(url) {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+
+    if (url) {
+      imagePreview.src = url;
+      imagePreview.hidden = false;
+      imagePlaceholder.hidden = true;
+    } else {
+      imagePreview.removeAttribute("src");
+      imagePreview.hidden = true;
+      imagePlaceholder.hidden = false;
+    }
+  }
+
+  imageInput.addEventListener("change", function () {
+    const file = imageInput.files && imageInput.files[0];
+
+    if (!file) return;
+
+    const allowedTypes = [
+      "image/png",
+      "image/jpeg",
+      "image/webp"
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      imageInput.value = "";
+      showImageMessage(
+        "PNG・JPEG・WebP形式の画像を選択してください。",
+        "error"
+      );
+      return;
+    }
+
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      imageInput.value = "";
+      showImageMessage(
+        "画像は5MB以下のファイルを選択してください。",
+        "error"
+      );
+      return;
+    }
+
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+    }
+
+    previewObjectUrl = URL.createObjectURL(file);
+    imagePreview.src = previewObjectUrl;
+    imagePreview.hidden = false;
+    imagePlaceholder.hidden = true;
+
+    showImageMessage(
+      "選択した画像です。確認してからアップロードしてください。",
+      ""
+    );
+  });
+
 
   let challenge = null;
   let panels = [];
@@ -385,6 +544,7 @@
 
       challenge = result.challenge || null;
       panels = Array.isArray(result.panels) ? result.panels : [];
+      displayCharacterImage(challenge ? challenge.image_url : null);
 
       titleInput.value = challenge
         ? challenge.title
@@ -503,6 +663,73 @@
       setBusy(false);
     }
   }
+
+  
+  async function uploadCharacterImage() {
+    if (uploadingImage || loading || saving) return;
+
+    const file = imageInput.files && imageInput.files[0];
+
+    if (!file) {
+      showImageMessage("アップロードする画像を選択してください。", "error");
+      return;
+    }
+
+    uploadingImage = true;
+    uploadImageButton.disabled = true;
+    imageInput.disabled = true;
+    showImageMessage("画像をアップロードしています...");
+
+    try {
+      const sessionOk = await checkSession();
+
+      if (!sessionOk) return;
+
+      const formData = new FormData();
+      formData.append("image", file);
+
+      const response = await fetch("/api/challenge-image", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        body: formData
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(
+          result.error || "画像をアップロードできませんでした"
+        );
+      }
+
+      if (previewObjectUrl) {
+        URL.revokeObjectURL(previewObjectUrl);
+        previewObjectUrl = null;
+      }
+
+      imageInput.value = "";
+      displayCharacterImage(result.image_url);
+
+      // チャレンジの設定も再読み込みして最新状態に合わせる
+      await loadChallenge();
+
+      showImageMessage("立ち絵をアップロードしました！", "success");
+    } catch (error) {
+      showImageMessage(
+        (error.message || "画像のアップロードに失敗しました。") +
+        " もう一度お試しください。",
+        "error"
+      );
+    } finally {
+      uploadingImage = false;
+      uploadImageButton.disabled = false;
+      imageInput.disabled = false;
+    }
+  }
+
+  uploadImageButton.addEventListener("click", uploadCharacterImage);
+
 
   rowsInput.addEventListener("change", renderPanels);
   columnsInput.addEventListener("change", renderPanels);
