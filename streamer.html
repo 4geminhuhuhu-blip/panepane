@@ -87,5 +87,34 @@
       <p>今後、配信情報や各種設定などをここに追加できます。</p>
     </section>
   </main>
+  
+<script>
+(async function () {
+  try {
+    const response = await fetch("/api/streamer-check-session", {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    const result = await response.json();
+
+    if (
+      !response.ok ||
+      result.ok !== true ||
+      result.authenticated !== true
+    ) {
+      window.location.replace("/");
+      return;
+    }
+
+    // ログイン確認成功
+    console.log("配信者セッションを確認しました");
+  } catch (error) {
+    window.location.replace("/");
+  }
+})();
+</script>
+
 </body>
 </html>
