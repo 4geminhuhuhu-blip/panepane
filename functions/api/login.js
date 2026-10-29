@@ -100,12 +100,23 @@ export async function onRequest({ request, env }) {
       },
     });
 
-    if (!adminResponse.ok) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "Admin verification failed" }),
-        { status: 500, headers }
-      );
-    }
+ if (!adminResponse.ok) {
+  const adminError = await adminResponse.text();
+  console.log(
+    "Admin verification failed:",
+    adminResponse.status,
+    adminError
+  );
+
+  return new Response(
+    JSON.stringify({
+      ok: false,
+      error: "Admin verification failed",
+      status: adminResponse.status,
+    }),
+    { status: 500, headers }
+  );
+}
 
     const admins = await adminResponse.json();
 
