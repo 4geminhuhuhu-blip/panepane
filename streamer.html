@@ -409,6 +409,7 @@
   const saveButton = document.getElementById("save-button");
   const reloadButton = document.getElementById("reload-button");
   const message = document.getElementById("message");
+  const startButton = document.getElementById("start-button");
   
   const imageInput = document.getElementById("character-image");
   const imagePreview = document.getElementById("character-image-preview");
@@ -826,6 +827,62 @@
 
   uploadImageButton.addEventListener("click", uploadCharacterImage);
 
+    async function startChallenge() {
+    if (saving || loading) return;
+
+    if (!challenge) {
+      showMessage("先に設定を保存してください。", "error");
+      return;
+    }
+
+    if (challenge.is_started) {
+      showMessage("チャレンジはすでに開始されています。");
+      return;
+    }
+
+    if (!confirm("チャレンジを開始しますか？")) return;
+
+    startButton.disabled = true;
+    showMessage("チャレンジを開始しています...");
+
+    try {
+      const sessionOk = await checkSession();
+      if (!sessionOk) return;
+
+      const response = await fetch("/api/challenge", {
+        method: "PATCH",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          action: "start"
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(
+          result.error || "チャレンジを開始できませんでした。"
+        );
+      }
+
+      showMessage("チャレンジを開始しました！", "success");
+      await loadChallenge();
+    } catch (error) {
+      showMessage(
+        error.message || "開始中にエラーが発生しました。",
+        "error"
+      );
+    } finally {
+      startButton.disabled = false;
+    }
+  }
+
+  startButton.addEventListener("click", startChallenge);
+  
 
   rowsInput.addEventListener("change", renderPanels);
   columnsInput.addEventListener("change", renderPanels);
