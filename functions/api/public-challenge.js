@@ -35,7 +35,7 @@ export async function onRequest({ request, env }) {
     const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,"
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started"
     );
     challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
     challengeUrl.searchParams.set("limit", "1");
