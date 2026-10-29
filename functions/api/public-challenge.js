@@ -35,26 +35,26 @@ export async function onRequest({ request, env }) {
     const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started"
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended"
     );
     challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
     challengeUrl.searchParams.set("limit", "1");
 
     const challengeResponse = await fetch(challengeUrl, { headers });
 
-　if (!challengeResponse.ok) {
-  const errorText = await challengeResponse.text();
-  console.error(
-    "Public challenge query failed:",
-    challengeResponse.status,
-    errorText
-  );
+    if (!challengeResponse.ok) {
+      const errorText = await challengeResponse.text();
+      console.error(
+        "Public challenge query failed:",
+        challengeResponse.status,
+        errorText
+      );
 
-  return json(
-    { ok: false, error: "チャレンジ情報を取得できませんでした。" },
-    502
-  );
-}
+      return json(
+        { ok: false, error: "チャレンジ情報を取得できませんでした。" },
+        502
+      );
+    }
 
     const challengeList = await challengeResponse.json();
     const record = Array.isArray(challengeList) ? challengeList[0] : null;
@@ -105,7 +105,7 @@ export async function onRequest({ request, env }) {
       image_position_y: record.image_position_y,
       image_scale: record.image_scale,
       is_started: record.is_started,
-     
+      is_ended: record.is_ended === true,
     };
 
     return json({ ok: true, challenge, panels });
