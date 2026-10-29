@@ -1,0 +1,313 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理者ページ｜パネパン</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f5f3ff;
+      color: #292442;
+    }
+
+    header {
+      background: #6c55c9;
+      color: white;
+      padding: 22px 16px;
+      text-align: center;
+    }
+
+    header h1 { margin: 0; font-size: 24px; }
+
+    main {
+      width: min(92%, 600px);
+      margin: 28px auto;
+    }
+
+    .card {
+      background: white;
+      padding: 24px;
+      margin-bottom: 18px;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px #29244212;
+    }
+
+    h2 { margin-top: 0; font-size: 20px; }
+
+    label {
+      display: block;
+      margin-top: 14px;
+      font-size: 14px;
+      font-weight: bold;
+    }
+
+    input {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin-top: 7px;
+      border: 1px solid #d8d2e8;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
+    .button {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-top: 18px;
+      border: 0;
+      border-radius: 10px;
+      background: #6c55c9;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .note {
+      color: #716b83;
+      font-size: 13px;
+      line-height: 1.8;
+    }
+
+    .message {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    [hidden] { display: none !important; }
+
+    footer {
+      padding: 20px;
+      text-align: center;
+      color: #716b83;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>パネパン 管理者ページ</h1>
+  </header>
+
+  <main>
+    <section class="card" id="login-card">
+      <h2>管理者ログイン</h2>
+      <p class="note">
+        管理者として登録されたメールアドレスとパスワードを入力してください。
+      </p>
+
+      <form id="login-form">
+        <label for="email">メールアドレス</label>
+        <input
+          id="email"
+          type="email"
+          autocomplete="username"
+          required
+        >
+
+        <label for="password">パスワード</label>
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          required
+        >
+
+        <button class="button" type="submit">ログイン</button>
+        <p id="login-message" class="note message"
+           role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="card" id="admin-card" hidden>
+      <h2>配信者アカウント発行</h2>
+      <p class="note">
+        発行したログインIDとパスワードを配信者本人に安全な方法で伝えてください。
+      </p>
+
+      <form id="create-form">
+        <label for="new-login-id">配信者ログインID</label>
+        <input
+          id="new-login-id"
+          type="text"
+          placeholder="例：panepan_001"
+          pattern="[A-Za-z0-9_-]{3,40}"
+          title="半角英数字、_、- を使った3〜40文字"
+          autocomplete="off"
+          required
+        >
+
+        <label for="new-password">初期パスワード</label>
+        <input
+          id="new-password"
+          type="password"
+          minlength="8"
+          maxlength="1024"
+          autocomplete="new-password"
+          required
+        >
+
+        <button class="button" type="submit">
+          配信者アカウントを発行
+        </button>
+
+        <p id="create-message" class="note message"
+           role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <p class="note">
+      <a href="/">トップページに戻る</a>
+    </p>
+  </main>
+
+  <footer>© パネパン｜管理者専用</footer>
+
+  <script>
+    const loginCard = document.getElementById("login-card");
+    const adminCard = document.getElementById("admin-card");
+    const loginForm = document.getElementById("login-form");
+    const createForm = document.getElementById("create-form");
+    const loginMessage = document.getElementById("login-message");
+    const createMessage = document.getElementById("create-message");
+
+    async function checkAdminSession() {
+      try {
+        const response = await fetch("/api/session", {
+          method: "GET",
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.ok && result.authenticated === true) {
+          loginCard.hidden = true;
+          adminCard.hidden = false;
+        } else {
+          loginCard.hidden = false;
+          adminCard.hidden = true;
+        }
+      } catch {
+        loginMessage.textContent =
+          "ログイン状態を確認できません。ページを再読み込みしてください。";
+      }
+    }
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const button = loginForm.querySelector("button[type='submit']");
+      button.disabled = true;
+      loginMessage.textContent = "ログインを確認しています…";
+
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          cache: "no-store",
+          body: JSON.stringify({
+            email: document.getElementById("email").value.trim(),
+            password: document.getElementById("password").value
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+          loginMessage.textContent =
+            result.error || "ログインできませんでした。";
+          return;
+        }
+
+        await checkAdminSession();
+
+        if (!adminCard.hidden) {
+          loginMessage.textContent = "";
+          loginForm.reset();
+        } else {
+          loginMessage.textContent =
+            "ログイン後の管理者確認ができませんでした。設定を確認してください。";
+        }
+      } catch {
+        loginMessage.textContent =
+          "通信に失敗しました。時間をおいて再度お試しください。";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    createForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+
+      const button = createForm.querySelector("button[type='submit']");
+      const loginId = document.getElementById("new-login-id").value.trim();
+      const password = document.getElementById("new-password").value;
+
+      button.disabled = true;
+      createMessage.textContent = "アカウントを発行しています…";
+
+      try {
+        const response = await fetch("/api/admin-streamers", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          credentials: "same-origin",
+          cache: "no-store",
+          body: JSON.stringify({
+            login_id: loginId,
+            password: password
+          })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.ok) {
+          if (response.status === 401 || response.status === 403) {
+            adminCard.hidden = true;
+            loginCard.hidden = false;
+            loginMessage.textContent =
+              "管理者の認証を確認できません。もう一度ログインしてください。";
+            createMessage.textContent = "";
+          } else if (response.status === 409) {
+            createMessage.textContent =
+              "このログインIDはすでに使われています。別のIDを入力してください。";
+          } else {
+            createMessage.textContent =
+              result.error || "アカウントを発行できませんでした。";
+          }
+          return;
+        }
+
+        createMessage.textContent =
+          "発行に成功しました。\nログインID：" + result.login_id;
+
+        createForm.reset();
+      } catch {
+        createMessage.textContent =
+          "通信に失敗しました。時間をおいて再度お試しください。";
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    checkAdminSession();
+  </script>
+</body>
+</html>
