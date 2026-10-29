@@ -151,12 +151,19 @@ export async function onRequest({ request, env }) {
       );
     }
 
-    if (!insertResponse.ok) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "Account creation failed" }),
-        { status: 502, headers }
-      );
-    }
+if (!insertResponse.ok) {
+  const errorText = await insertResponse.text();
+
+  console.error("Streamer insert failed:", {
+    status: insertResponse.status,
+    error: errorText,
+  });
+
+  return new Response(
+    JSON.stringify({ ok: false, error: "Account creation failed" }),
+    { status: 502, headers }
+  );
+}
 
     return new Response(
       JSON.stringify({ ok: true, login_id: loginId }),
