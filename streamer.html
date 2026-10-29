@@ -87,6 +87,18 @@
       <p>今後、配信情報や各種設定などをここに追加できます。</p>
     </section>
   </main>
+
+<div style="text-align: right; margin: 20px 0;">
+  <button
+    id="logout-button"
+    type="button"
+    style="padding: 10px 20px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer;"
+  >
+    ログアウト
+  </button>
+  <p id="logout-message" role="status"></p>
+</div>
+
   
 <script>
 (async function () {
@@ -114,6 +126,35 @@
     window.location.replace("/");
   }
 })();
+</script>
+
+<script>
+document.getElementById("logout-button").addEventListener("click", async function () {
+  const button = this;
+  const message = document.getElementById("logout-message");
+
+  button.disabled = true;
+  message.textContent = "ログアウトしています...";
+
+  try {
+    const response = await fetch("/api/streamer-logout", {
+      method: "POST",
+      credentials: "same-origin",
+      cache: "no-store"
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || result.ok !== true) {
+      throw new Error("ログアウトに失敗しました");
+    }
+
+    window.location.replace("/");
+  } catch (error) {
+    message.textContent = "ログアウトできませんでした。もう一度お試しください。";
+    button.disabled = false;
+  }
+});
 </script>
 
 </body>
