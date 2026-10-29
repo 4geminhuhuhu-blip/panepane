@@ -137,32 +137,6 @@ if (!["GET", "POST", "PATCH"].includes(request.method)) {
           `${baseUrl}/rest/v1/challenges`
         );
 
-        startUrl.searchParams.set(
-          "streamer_id",
-          `eq.${streamerId}`
-        );
-
-        const response = await fetch(startUrl, {
-          method: "PATCH",
-          headers: {
-            ...headers,
-            Prefer: "return=representation",
-          },
-          body: JSON.stringify({
-            is_started: true,
-          }),
-        });
-
-        if (!response.ok) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジを開始できませんでした。",
-            },
-            502
-          );
-        }
-
         const updated = await response.json();
 
         if (!updated.length) {
