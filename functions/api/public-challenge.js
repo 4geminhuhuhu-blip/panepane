@@ -42,10 +42,19 @@ export async function onRequest({ request, env }) {
 
     const challengeResponse = await fetch(challengeUrl, { headers });
 
-    if (!challengeResponse.ok) {
-      console.error("Public challenge query failed:", challengeResponse.status);
-      return json({ ok: false, error: "チャレンジ情報を取得できませんでした。" }, 502);
-    }
+　if (!challengeResponse.ok) {
+  const errorText = await challengeResponse.text();
+  console.error(
+    "Public challenge query failed:",
+    challengeResponse.status,
+    errorText
+  );
+
+  return json(
+    { ok: false, error: "チャレンジ情報を取得できませんでした。" },
+    502
+  );
+}
 
     const challengeList = await challengeResponse.json();
     const record = Array.isArray(challengeList) ? challengeList[0] : null;
