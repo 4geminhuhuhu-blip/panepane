@@ -129,14 +129,194 @@ if (!["GET", "POST", "PATCH"].includes(request.method)) {
     }
 
     if (request.method === "PATCH") {
-  const body = await request.json();
+      const body = await request.json();
 
-  if (body.action !== "start") {
-    return json(
-      { ok: false, error: "不正な操作です。" },
-      400
-    );
-  }
+      // チャレンジ開始（既存機能）
+      if (body.action === "start") {
+        const startUrl = new URL(
+          `${baseUrl}/rest/v1/challenges`
+        );
+
+        startUrl.searchParams.set(
+          "streamer_id",
+          `eq.${streamerId}`
+        );
+
+        const response = await fetch(startUrl, {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            is_started: true,
+          }),
+        });
+
+        if (!response.ok) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジを開始できませんでした。",
+            },
+            502
+          );
+        }
+
+        const updated = await response.json();
+
+        if (!updated.length) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジが見つかりません。",
+            },
+            404
+          );
+        }
+
+        return json({
+          ok: true,
+          message: "チャレンジを開始しました。",
+        });
+      }
+
+      // パネルの開閉
+      if (body.action === "set-panel") {
+        const panelNumber = Number(body.panel_number);
+
+        if (
+          !Number.isInteger(panelNumber) ||
+          panelNumber < 1 ||
+          typeof body.is_open !== "boolean"
+        ) {
+          return json(
+            {
+              ok: false,
+              error: "パネルの指定が正しくありません。",
+            },
+            400
+          );
+        }
+
+        // ログイン中の配信者のチャレンジを取得
+        const challengeResponse = await fetch(
+          challengeUrl,
+          { headers }
+        );
+
+        if (!challengeResponse.ok) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジ情報を取得できませんでした。",
+            },
+            502
+          );
+        }
+
+        const challenges = await challengeResponse.json();
+        const challenge = challenges[0];
+
+        if (!challenge) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジが見つかりません。",
+            },
+            404
+          );
+        }
+
+        if (!challenge.is_started) {
+          return json(
+            {
+              ok: false,
+              error: "チャレンジを開始してから操作してください。",
+            },
+            400
+          );
+        }
+
+        if (
+          panelNumber >
+          challenge.grid_rows * challenge.grid_columns
+        ) {
+          return json(
+            {
+              ok: false,
+              error: "パネル番号が範囲外です。",
+            },
+            400
+          );
+        }
+
+        const panelUrl = new URL(
+          `${baseUrl}/rest/v1/challenge_panels`
+        );
+
+        panelUrl.searchParams.set(
+          "challenge_id",
+          `eq.${challenge.id}`
+        );
+        panelUrl.searchParams.set(
+          "panel_number",
+          `eq.${panelNumber}`
+        );
+
+        const now = new Date().toISOString();
+
+        const panelResponse = await fetch(panelUrl, {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            is_open: body.is_open,
+            opened_at: body.is_open ? now : null,
+            updated_at: now,
+          }),
+        });
+
+        if (!panelResponse.ok) {
+          return json(
+            {
+              ok: false,
+              error: "パネルの状態を変更できませんでした。",
+            },
+            502
+          );
+        }
+
+        const updatedPanels = await panelResponse.json();
+
+        if (!updatedPanels.length) {
+          return json(
+            {
+              ok: false,
+              error: "対象のパネルが見つかりません。",
+            },
+            404
+          );
+        }
+
+        return json({
+          ok: true,
+          message: body.is_open
+            ? "パネルを開きました。"
+            : "パネルを閉じました。",
+        });
+      }
+
+      return json(
+        {
+          ok: false,
+          error: "不正な操作です。",
+        },
+        400
+      );
+    }
 
   const challengeUrl = new URL(
     `${baseUrl}/rest/v1/challenges`
