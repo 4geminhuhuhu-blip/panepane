@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>配信者マイページ</title>
+  <title>パネパン｜配信者マイページ</title>
   <style>
     * { box-sizing: border-box; }
 
@@ -18,27 +17,26 @@
     header {
       background: #263b63;
       color: white;
-      padding: 20px;
+      padding: 20px 16px;
     }
 
     header h1 {
-      margin: 0;
+      max-width: 900px;
+      margin: 0 auto;
       font-size: 22px;
     }
 
     main {
       max-width: 900px;
-      margin: 30px auto;
+      margin: 28px auto;
       padding: 0 16px;
     }
 
-    .welcome {
-      margin-bottom: 24px;
-    }
+    .welcome { margin-bottom: 24px; }
 
     .card {
       background: white;
-      padding: 24px;
+      padding: 22px;
       margin-bottom: 18px;
       border-radius: 12px;
       box-shadow: 0 2px 8px #0000000a;
@@ -46,63 +44,302 @@
 
     .card h2 {
       margin-top: 0;
-      font-size: 18px;
+      font-size: 19px;
     }
 
-    .status {
+    .hint {
       color: #64748b;
-      line-height: 1.8;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    label {
+      display: block;
+      margin: 16px 0 7px;
+      font-weight: bold;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 11px;
+      border: 1px solid #cbd5e1;
+      border-radius: 7px;
+      font: inherit;
+      background: white;
+    }
+
+    input:disabled, select:disabled {
+      background: #e9edf3;
+      color: #64748b;
+    }
+
+    .grid-settings {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .panel-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .panel-item {
+      min-width: 0;
+      padding: 13px;
+      border: 1px solid #dbe2ed;
+      border-radius: 9px;
+      background: #fafbfe;
+    }
+
+    .panel-item label {
+      margin: 0 0 8px;
+      font-size: 14px;
+    }
+
+    textarea {
+      min-height: 76px;
+      resize: vertical;
+    }
+
+    .panel-state {
+      margin-bottom: 8px;
+      color: #64748b;
+      font-size: 12px;
     }
 
     button {
-      padding: 12px 20px;
+      padding: 12px 18px;
       border: 0;
       border-radius: 8px;
       background: #263b63;
       color: white;
+      font: inherit;
       cursor: pointer;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .secondary-button { background: #64748b; }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    #message {
+      min-height: 24px;
+      margin-top: 14px;
+      line-height: 1.6;
+      overflow-wrap: anywhere;
+    }
+
+    .error { color: #b91c1c; }
+    .success { color: #166534; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 5px 10px;
+      border-radius: 20px;
+      background: #e2e8f0;
+      font-size: 13px;
+    }
+
+    @media (max-width: 560px) {
+      .card { padding: 17px; }
+      .panel-list { grid-template-columns: 1fr; }
+      .grid-settings { gap: 10px; }
+      button { width: 100%; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>配信者マイページ</h1>
+    <h1>パネパン｜配信者マイページ</h1>
   </header>
 
   <main>
     <section class="welcome">
-      <h2>ようこそ！</h2>
-      <p>配信者専用ページです。</p>
+      <h2>チャレンジ設定</h2>
+      <p>立ち絵チャレンジのタイトルや、マスごとの条件を設定できます。</p>
+      <span id="challenge-status" class="status-badge">読み込み中</span>
     </section>
 
     <section class="card">
-      <h2>アカウント情報</h2>
-      <p class="status">
-        ログイン状態を確認する機能は、これから接続します。
+      <h2>基本設定</h2>
+
+      <label for="title">チャレンジタイトル</label>
+      <input
+        id="title"
+        type="text"
+        maxlength="100"
+        value="立ち絵チャレンジ"
+      >
+
+      <div class="grid-settings">
+        <div>
+          <label for="grid-rows">縦のマス数</label>
+          <select id="grid-rows">
+            <option value="3">3マス</option>
+            <option value="4">4マス</option>
+            <option value="5">5マス</option>
+            <option value="6">6マス</option>
+            <option value="7">7マス</option>
+            <option value="8">8マス</option>
+            <option value="9">9マス</option>
+            <option value="10">10マス</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="grid-columns">横のマス数</label>
+          <select id="grid-columns">
+            <option value="3">3マス</option>
+            <option value="4">4マス</option>
+            <option value="5">5マス</option>
+            <option value="6">6マス</option>
+            <option value="7">7マス</option>
+            <option value="8">8マス</option>
+            <option value="9">9マス</option>
+            <option value="10">10マス</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="hint">
+        マス数を変更すると、条件入力欄も更新されます。
+        開始済みのチャレンジではマス数を変更できません。
       </p>
     </section>
 
     <section class="card">
-      <h2>配信者メニュー</h2>
-      <p>今後、配信情報や各種設定などをここに追加できます。</p>
-    </section>
-  </main>
+      <h2>マスごとの達成条件</h2>
+      <p class="hint">
+        例：「コメントを10回もらう」「ギフトを1つもらう」など。
+        条件の達成確認は配信者自身で行います。
+      </p>
 
-    <div style="text-align: right; margin: 20px 0;">
-      <button
-        id="logout-button"
-        type="button"
-        style="padding: 10px 20px; background: #555; color: white; border: none; border-radius: 6px; cursor: pointer;"
-      >
+      <p id="panel-count" class="hint">9マス</p>
+      <div id="panel-list" class="panel-list"></div>
+
+      <div class="actions">
+        <button id="save-button" type="button">設定を保存</button>
+        <button
+          id="reload-button"
+          class="secondary-button"
+          type="button"
+        >保存済み設定を再読み込み</button>
+      </div>
+
+      <p id="message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>アカウント</h2>
+      <p class="hint">ログイン中の配信者専用ページです。</p>
+      <button id="logout-button" class="secondary-button" type="button">
         ログアウト
       </button>
       <p id="logout-message" role="status"></p>
-    </div>
+    </section>
   </main>
-   
+
 <script>
-(async function () {
-  try {
+(function () {
+  const titleInput = document.getElementById("title");
+  const rowsInput = document.getElementById("grid-rows");
+  const columnsInput = document.getElementById("grid-columns");
+  const panelList = document.getElementById("panel-list");
+  const panelCount = document.getElementById("panel-count");
+  const statusBadge = document.getElementById("challenge-status");
+  const saveButton = document.getElementById("save-button");
+  const reloadButton = document.getElementById("reload-button");
+  const message = document.getElementById("message");
+
+  let challenge = null;
+  let panels = [];
+  let loading = false;
+  let saving = false;
+
+  function showMessage(text, type) {
+    message.textContent = text;
+    message.className = type || "";
+  }
+
+  function getRows() {
+    return Number(rowsInput.value);
+  }
+
+  function getColumns() {
+    return Number(columnsInput.value);
+  }
+
+  function renderPanels() {
+    const count = getRows() * getColumns();
+    const previousValues = new Map();
+
+    panelList.querySelectorAll("textarea").forEach(function (input) {
+      previousValues.set(Number(input.dataset.number), input.value);
+    });
+
+    panels.forEach(function (panel) {
+      previousValues.set(panel.panel_number, panel.condition_text || "");
+    });
+
+    panelList.replaceChildren();
+    panelCount.textContent = count + "マス";
+
+    for (let number = 1; number <= count; number++) {
+      const item = document.createElement("div");
+      item.className = "panel-item";
+
+      const label = document.createElement("label");
+      label.htmlFor = "panel-" + number;
+      label.textContent = "マス " + number;
+
+      const panel = panels.find(function (p) {
+        return p.panel_number === number;
+      });
+
+      const state = document.createElement("div");
+      state.className = "panel-state";
+      state.textContent = panel && panel.is_open
+        ? "開放済み"
+        : "未開放";
+
+      const textarea = document.createElement("textarea");
+      textarea.id = "panel-" + number;
+      textarea.dataset.number = String(number);
+      textarea.maxLength = 500;
+      textarea.placeholder = "このマスを開放する条件を入力";
+      textarea.value = previousValues.get(number) || "";
+
+      item.append(label, state, textarea);
+      panelList.appendChild(item);
+    }
+  }
+
+  function setBusy(isBusy) {
+    saveButton.disabled = isBusy;
+    reloadButton.disabled = isBusy;
+    titleInput.disabled = isBusy;
+
+    const gridLocked = Boolean(challenge && challenge.is_started);
+    rowsInput.disabled = isBusy || gridLocked;
+    columnsInput.disabled = isBusy || gridLocked;
+
+    panelList.querySelectorAll("textarea").forEach(function (input) {
+      input.disabled = isBusy;
+    });
+  }
+
+  async function checkSession() {
     const response = await fetch("/api/streamer-check-session", {
       method: "GET",
       credentials: "same-origin",
@@ -117,45 +354,195 @@
       result.authenticated !== true
     ) {
       window.location.replace("/");
+      return false;
+    }
+
+    return true;
+  }
+
+  async function loadChallenge() {
+    if (loading || saving) return;
+
+    loading = true;
+    setBusy(true);
+    showMessage("設定を読み込んでいます...");
+
+    try {
+      const sessionOk = await checkSession();
+      if (!sessionOk) return;
+
+      const response = await fetch("/api/challenge", {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(result.error || "設定を読み込めませんでした");
+      }
+
+      challenge = result.challenge || null;
+      panels = Array.isArray(result.panels) ? result.panels : [];
+
+      titleInput.value = challenge
+        ? challenge.title
+        : "立ち絵チャレンジ";
+
+      rowsInput.value = String(
+        challenge ? challenge.grid_rows : 3
+      );
+
+      columnsInput.value = String(
+        challenge ? challenge.grid_columns : 3
+      );
+
+      statusBadge.textContent = challenge
+        ? (challenge.is_started ? "チャレンジ中" : "開始前")
+        : "未作成";
+
+      renderPanels();
+      showMessage(
+        challenge
+          ? "保存済みの設定を読み込みました。"
+          : "まだチャレンジはありません。設定して保存してください。",
+        "success"
+      );
+    } catch (error) {
+      showMessage(
+        error.message || "読み込みに失敗しました。",
+        "error"
+      );
+    } finally {
+      loading = false;
+      setBusy(false);
+    }
+  }
+
+  async function saveChallenge() {
+    if (saving || loading) return;
+
+    const title = titleInput.value.trim();
+    const rows = getRows();
+    const columns = getColumns();
+
+    if (!title || title.length > 100) {
+      showMessage("タイトルは1〜100文字で入力してください。", "error");
+      titleInput.focus();
       return;
     }
 
-    // ログイン確認成功
-    console.log("配信者セッションを確認しました");
-  } catch (error) {
-    window.location.replace("/");
-  }
-})();
-</script>
+    const currentCount = rows * columns;
+    const conditions = [];
 
-<script>
-document.getElementById("logout-button").addEventListener("click", async function () {
-  const button = this;
-  const message = document.getElementById("logout-message");
+    for (let number = 1; number <= currentCount; number++) {
+      const input = panelList.querySelector(
+        'textarea[data-number="' + number + '"]'
+      );
 
-  button.disabled = true;
-  message.textContent = "ログアウトしています...";
+      if (!input || input.value.length > 500) {
+        showMessage(
+          "各マスの条件は500文字以内で入力してください。",
+          "error"
+        );
+        return;
+      }
 
-  try {
-    const response = await fetch("/api/streamer-logout", {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store"
-    });
-
-    const result = await response.json();
-
-    if (!response.ok || result.ok !== true) {
-      throw new Error("ログアウトに失敗しました");
+      conditions.push({
+        panel_number: number,
+        condition_text: input.value
+      });
     }
 
-    window.location.replace("/");
-  } catch (error) {
-    message.textContent = "ログアウトできませんでした。もう一度お試しください。";
-    button.disabled = false;
-  }
-});
-</script>
+    saving = true;
+    setBusy(true);
+    showMessage("設定を保存しています...");
 
+    try {
+      const sessionOk = await checkSession();
+      if (!sessionOk) return;
+
+      const response = await fetch("/api/challenge", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          title: title,
+          grid_rows: rows,
+          grid_columns: columns,
+          panels: conditions
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(result.error || "設定を保存できませんでした");
+      }
+
+      challenge = result.challenge || challenge;
+      panels = Array.isArray(result.panels) ? result.panels : [];
+
+      statusBadge.textContent = challenge && challenge.is_started
+        ? "チャレンジ中"
+        : "開始前";
+
+      renderPanels();
+      showMessage("設定を保存しました！", "success");
+    } catch (error) {
+      showMessage(
+        (error.message || "保存に失敗しました。") +
+        " 入力内容は画面に残しています。"
+      , "error");
+    } finally {
+      saving = false;
+      setBusy(false);
+    }
+  }
+
+  rowsInput.addEventListener("change", renderPanels);
+  columnsInput.addEventListener("change", renderPanels);
+  saveButton.addEventListener("click", saveChallenge);
+  reloadButton.addEventListener("click", loadChallenge);
+
+  document.getElementById("logout-button").addEventListener(
+    "click",
+    async function () {
+      const button = this;
+      const logoutMessage = document.getElementById("logout-message");
+
+      button.disabled = true;
+      logoutMessage.textContent = "ログアウトしています...";
+
+      try {
+        const response = await fetch("/api/streamer-logout", {
+          method: "POST",
+          credentials: "same-origin",
+          cache: "no-store"
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || result.ok !== true) {
+          throw new Error("ログアウトに失敗しました");
+        }
+
+        window.location.replace("/");
+      } catch (error) {
+        logoutMessage.textContent =
+          "ログアウトできませんでした。もう一度お試しください。";
+        button.disabled = false;
+      }
+    }
+  );
+
+  renderPanels();
+  loadChallenge();
+})();
+</script>
 </body>
 </html>
