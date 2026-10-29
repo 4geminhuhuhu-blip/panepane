@@ -96,7 +96,6 @@ export async function onRequest({ request, env }) {
     const adminResponse = await fetch(adminUrl.toString(), {
       headers: {
         apikey: env.SUPABASE_SECRET_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
       },
     });
 
