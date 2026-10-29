@@ -1,4 +1,4 @@
-const ITERATIONS = 600000;
+const ITERATIONS = 100000;
 const HASH_LENGTH = 32;
 const SALT_LENGTH = 16;
 
