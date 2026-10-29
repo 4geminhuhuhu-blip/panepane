@@ -120,6 +120,8 @@ export async function onRequest({ request, env }) {
 
     const admins = await adminResponse.json();
 
+    console.log("Admin query result count:", admins.length);
+
     if (!Array.isArray(admins) || admins.length !== 1) {
       return new Response(
         JSON.stringify({
