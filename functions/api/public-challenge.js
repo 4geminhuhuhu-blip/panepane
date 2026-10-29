@@ -65,30 +65,36 @@ export async function onRequest({ request, env }) {
 
     // パネルを取得
     const panelsUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
-    panelsUrl.searchParams.set("select", "*");
+    panelsUrl.searchParams.set(
+      "select",
+      "panel_number,condition_text,is_open"
+    );
     panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
+    panelsUrl.searchParams.set("order", "panel_number.asc");
 
     const panelsResponse = await fetch(panelsUrl, { headers });
 
     if (!panelsResponse.ok) {
       console.error("Public panels query failed:", panelsResponse.status);
-      return json({ ok: false, error: "パネル情報を取得できませんでした。" }, 502);
+      return json(
+        { ok: false, error: "パネル情報を取得できませんでした。" },
+        502
+      );
     }
 
     const panelRecords = await panelsResponse.json();
 
-    // 公開してよい項目だけを返す
-    const panels = panelRecords.map((panel) => ({
-      condition: typeof panel.condition === "string" ? panel.condition : "",
-      is_open: panel.is_open === true,
-      panel_index:
-        Number.isInteger(panel.panel_index) ? panel.panel_index : null,
-    }));
-
-    panels.sort((a, b) => {
-      if (a.panel_index === null || b.panel_index === null) return 0;
-      return a.panel_index - b.panel_index;
-    });
+    // 公開してよい項目だけを返し、番号順に統一
+    const panels = panelRecords
+      .map((panel) => ({
+        panel_number: Number(panel.panel_number),
+        condition_text:
+          typeof panel.condition_text === "string"
+            ? panel.condition_text
+            : "",
+        is_open: panel.is_open === true,
+      }))
+      .sort((a, b) => a.panel_number - b.panel_number);
 
     const challenge = {
       title: record.title,
