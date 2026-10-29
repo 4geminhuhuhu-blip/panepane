@@ -9,534 +9,105 @@ function json(data, status = 200) {
   });
 }
 
-async function getStreamerId(request, env) {
-  const cookie = request.headers.get("Cookie") || "";
-  const match = cookie.match(
-    /(?:^|;\s*)panepan_streamer_session=([^;]*)/
-  );
-
-  let token = "";
-
-  try {
-    token = match ? decodeURIComponent(match[1]) : "";
-  } catch {
-    return null;
-  }
-
-  if (!/^[a-f0-9]{64}$/i.test(token)) return null;
-
-  const bytes = new TextEncoder().encode(token);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
-  const tokenHash = Array.from(new Uint8Array(digest))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-
-  const url = new URL(
-    "/rest/v1/streamer_sessions",
-    env.SUPABASE_URL
-  );
-  url.searchParams.set("select", "streamer_id,expires_at");
-  url.searchParams.set("token_hash", `eq.${tokenHash}`);
-  url.searchParams.set("limit", "1");
-
-  const response = await fetch(url.toString(), {
-    headers: {
-      apikey: env.SUPABASE_SECRET_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Session lookup failed");
-  }
-
-  const sessions = await response.json();
-  const session = sessions[0];
-
-  if (
-    !session ||
-    !session.expires_at ||
-    new Date(session.expires_at).getTime() <= Date.now()
-  ) {
-    return null;
-  }
-
-  return session.streamer_id;
-}
-
-function supabaseUrl(env, table) {
-  return new URL(
-    `/rest/v1/${table}`,
-    env.SUPABASE_URL.replace(/\/+$/, "")
-  );
-}
-
-function supabaseHeaders(env, extra = {}) {
-  return {
-    apikey: env.SUPABASE_SECRET_KEY,
-    Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
-    "Content-Type": "application/json",
-    ...extra,
-  };
-}
-
-async function getChallenge(streamerId, env) {
-  const url = supabaseUrl(env, "challenges");
-  url.searchParams.set("select", "*");
-  url.searchParams.set("streamer_id", `eq.${streamerId}`);
-  url.searchParams.set("limit", "1");
-
-  const response = await fetch(url, {
-    headers: supabaseHeaders(env),
-  });
-
-  if (!response.ok) {
-    throw new Error("Could not load challenge");
-  }
-
-  const rows = await response.json();
-  return rows[0] || null;
-}
-
-async function getPanels(challengeId, env) {
-  const url = supabaseUrl(env, "challenge_panels");
-  url.searchParams.set("select", "*");
-  url.searchParams.set("challenge_id", `eq.${challengeId}`);
-  url.searchParams.set("order", "panel_number.asc");
-
-  const response = await fetch(url, {
-    headers: supabaseHeaders(env),
-  });
-
-  if (!response.ok) {
-    throw new Error("Could not load panels");
-  }
-
-  return response.json();
-}
-
-async function saveChallenge(request, env, streamerId) {
-  let body;
-
-  try {
-    body = await request.json();
-  } catch {
-    return json({ ok: false, error: "Invalid JSON" }, 400);
-  }
-
-  const title =
-    typeof body.title === "string"
-      ? body.title.trim()
-      : "立ち絵チャレンジ";
-
-  const rows = body.grid_rows;
-  const columns = body.grid_columns;
-
-  const imagePositionX = Number(body.image_position_x ?? 0);
-  const imagePositionY = Number(body.image_position_y ?? 0);
-  const imageScale = Number(body.image_scale ?? 100);
-
-  if (
-    !Number.isFinite(imagePositionX) ||
-    !Number.isFinite(imagePositionY) ||
-    !Number.isFinite(imageScale) ||
-    imagePositionX < -100 ||
-    imagePositionX > 100 ||
-    imagePositionY < -100 ||
-    imagePositionY > 100 ||
-    imageScale < 50 ||
-    imageScale > 200
-  ) {
-    return json({
-      ok: false,
-      error: "画像の位置または大きさが正しくありません",
-    }, 400);
-  }
-
-  if (
-    !Number.isInteger(rows) ||
-    !Number.isInteger(columns) ||
-    rows < 3 ||
-    rows > 10 ||
-    columns < 3 ||
-    columns > 10
-  ) {
-    return json({
-      ok: false,
-      error: "縦横のパネル数は3〜10で指定してください",
-    }, 400);
-  }
-
-  if (!title || title.length > 100) {
-    return json({
-      ok: false,
-      error: "タイトルは1〜100文字で指定してください",
-    }, 400);
-  }
-
-  const panelCount = rows * columns;
-  const conditions = body.panels;
-
-  if (
-    !Array.isArray(conditions) ||
-    conditions.length !== panelCount
-  ) {
-    return json({
-      ok: false,
-      error: `パネル条件は${panelCount}個必要です`,
-    }, 400);
-  }
-
-  const conditionMap = new Map();
-
-  for (const panel of conditions) {
-    if (
-      !panel ||
-      !Number.isInteger(panel.panel_number) ||
-      panel.panel_number < 1 ||
-      panel.panel_number > panelCount ||
-      typeof panel.condition_text !== "string" ||
-      panel.condition_text.length > 500
-    ) {
-      return json({
-        ok: false,
-        error: "パネル番号または条件文が正しくありません",
-      }, 400);
-    }
-
-    if (conditionMap.has(panel.panel_number)) {
-      return json({
-        ok: false,
-        error: "パネル番号が重複しています",
-      }, 400);
-    }
-
-    conditionMap.set(
-      panel.panel_number,
-      panel.condition_text.trim()
-    );
-  }
-
-  for (let number = 1; number <= panelCount; number++) {
-    if (!conditionMap.has(number)) {
-      return json({
-        ok: false,
-        error: `パネル${number}の条件がありません`,
-      }, 400);
-    }
-  }
-
-  const existing = await getChallenge(streamerId, env);
-
-  if (
-    existing &&
-    existing.is_started &&
-    (
-      existing.grid_rows !== rows ||
-      existing.grid_columns !== columns
-    )
-  ) {
-    return json({
-      ok: false,
-      error: "開始済みのチャレンジはパネル数を変更できません",
-    }, 409);
-  }
-
-  const now = new Date().toISOString();
-  let challenge = existing;
-
-  if (!challenge) {
-    const url = supabaseUrl(env, "challenges");
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: supabaseHeaders(env, {
-        Prefer: "return=representation",
-      }),
-      body: JSON.stringify({
-        streamer_id: streamerId,
-        title,
-        grid_rows: rows,
-        grid_columns: columns,
-        image_position_x: imagePositionX,
-        image_position_y: imagePositionY,
-        image_scale: imageScale,
-        updated_at: now,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(
-        "Challenge creation failed:",
-        response.status,
-        await response.text()
-      );
-
-      return json({
-        ok: false,
-        error: "チャレンジを作成できませんでした",
-      }, 502);
-    }
-
-    const created = await response.json();
-    challenge = created[0];
-
-    if (!challenge) {
-      return json({
-        ok: false,
-        error: "作成結果を取得できませんでした",
-      }, 502);
-    }
-  } else {
-    const url = supabaseUrl(env, "challenges");
-    url.searchParams.set("id", `eq.${challenge.id}`);
-    url.searchParams.set("streamer_id", `eq.${streamerId}`);
-
-    const response = await fetch(url, {
-      method: "PATCH",
-      headers: supabaseHeaders(env, {
-        Prefer: "return=representation",
-      }),
-      body: JSON.stringify({
-        title,
-        grid_rows: rows,
-        grid_columns: columns,
-        image_position_x: imagePositionX,
-        image_position_y: imagePositionY,
-        image_scale: imageScale,
-        updated_at: now,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error(
-        "Challenge update failed:",
-        response.status,
-        await response.text()
-      );
-
-      return json({
-        ok: false,
-        error: "チャレンジを保存できませんでした",
-      }, 502);
-    }
-
-    const updated = await response.json();
-    challenge = updated[0] || challenge;
-  }
-
-  let currentPanels = await getPanels(challenge.id, env);
-
-  const gridChanged =
-    existing &&
-    !existing.is_started &&
-    (
-      existing.grid_rows !== rows ||
-      existing.grid_columns !== columns
-    );
-
-  if (gridChanged) {
-    const deleteUrl = supabaseUrl(env, "challenge_panels");
-    deleteUrl.searchParams.set(
-      "challenge_id",
-      `eq.${challenge.id}`
-    );
-
-    const deleteResponse = await fetch(deleteUrl, {
-      method: "DELETE",
-      headers: supabaseHeaders(env),
-    });
-
-    if (!deleteResponse.ok) {
-      console.error(
-        "Panel deletion failed:",
-        deleteResponse.status,
-        await deleteResponse.text()
-      );
-
-      return json({
-        ok: false,
-        error: "パネル構成を更新できませんでした",
-      }, 502);
-    }
-
-    // グリッドを変更したため、既存パネルはなくなったものとして扱う
-    currentPanels = [];
-  }
-
-  const panelsToSave = [];
-
-  for (let number = 1; number <= panelCount; number++) {
-    const oldPanel = currentPanels.find(
-      (panel) => panel.panel_number === number
-    );
-
-    panelsToSave.push({
-      id: oldPanel?.id,
-      challenge_id: challenge.id,
-      panel_number: number,
-      condition_text: conditionMap.get(number),
-      is_open: oldPanel?.is_open ?? false,
-      opened_at: oldPanel?.opened_at ?? null,
-      updated_at: now,
-    });
-  }
-
-  if (existing && existing.is_started) {
-    // 開始後は条件文だけを更新し、開放状態は変更しない
-    for (const panel of panelsToSave) {
-      const url = supabaseUrl(env, "challenge_panels");
-      url.searchParams.set(
-        "challenge_id",
-        `eq.${challenge.id}`
-      );
-      url.searchParams.set(
-        "panel_number",
-        `eq.${panel.panel_number}`
-      );
-
-      const response = await fetch(url, {
-        method: "PATCH",
-        headers: supabaseHeaders(env),
-        body: JSON.stringify({
-          condition_text: panel.condition_text,
-          updated_at: now,
-        }),
-      });
-
-      if (!response.ok) {
-        console.error(
-          "Panel condition update failed:",
-          response.status,
-          await response.text()
-        );
-
-        return json({
-          ok: false,
-          error: "パネル条件を保存できませんでした",
-        }, 502);
-      }
-    }
-  } else {
-    // 開始前は既存パネルを更新し、存在しないパネルだけ追加する
-    for (const panel of panelsToSave) {
-      const existingPanel = currentPanels.find(
-        (item) => item.panel_number === panel.panel_number
-      );
-
-      let response;
-
-      if (existingPanel) {
-        const url = supabaseUrl(env, "challenge_panels");
-        url.searchParams.set(
-          "challenge_id",
-          `eq.${challenge.id}`
-        );
-        url.searchParams.set(
-          "panel_number",
-          `eq.${panel.panel_number}`
-        );
-
-        response = await fetch(url, {
-          method: "PATCH",
-          headers: supabaseHeaders(env),
-          body: JSON.stringify({
-            condition_text: panel.condition_text,
-            updated_at: now,
-          }),
-        });
-      } else {
-        const url = supabaseUrl(env, "challenge_panels");
-
-        response = await fetch(url, {
-          method: "POST",
-          headers: supabaseHeaders(env),
-          body: JSON.stringify({
-            challenge_id: challenge.id,
-            panel_number: panel.panel_number,
-            condition_text: panel.condition_text,
-            is_open: false,
-            updated_at: now,
-          }),
-        });
-      }
-
-      if (!response.ok) {
-        console.error(
-          "Panel save failed:",
-          response.status,
-          await response.text()
-        );
-
-        return json({
-          ok: false,
-          error: "パネル条件を保存できませんでした",
-        }, 502);
-      }
-    }
-  }
-
-  const savedPanels = await getPanels(challenge.id, env);
-
-  return json({
-    ok: true,
-    challenge,
-    panels: savedPanels,
-  });
-}
-
 export async function onRequest({ request, env }) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
-    return json({
-      ok: false,
-      error: "Server configuration error",
-    }, 500);
+  if (request.method !== "GET") {
+    return json({ ok: false, error: "GET method required" }, 405);
   }
 
+  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
+    return json({ ok: false, error: "Server configuration error" }, 500);
+  }
+
+  const url = new URL(request.url);
+  const streamerId = url.searchParams.get("id");
+
+  // UUID形式のIDだけを受け付ける
+  if (
+    !streamerId ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(streamerId)
+  ) {
+    return json({ ok: false, error: "配信者IDが正しくありません。" }, 400);
+  }
+
+  const baseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
+  const headers = {
+    apikey: env.SUPABASE_SECRET_KEY,
+  };
+
   try {
-    const streamerId = await getStreamerId(request, env);
+    // 配信者IDに対応するチャレンジを取得
+    const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
+    challengeUrl.searchParams.set(
+      "select",
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started"
+    );
+    challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+    challengeUrl.searchParams.set("limit", "1");
 
-    if (!streamerId) {
-      return json({
-        ok: false,
-        error: "Not authenticated",
-      }, 401);
+    const challengeResponse = await fetch(challengeUrl.toString(), { headers });
+
+    if (!challengeResponse.ok) {
+      console.error("Public challenge query failed:", challengeResponse.status);
+      return json(
+        { ok: false, error: "チャレンジ情報を取得できませんでした。" },
+        502
+      );
     }
 
-    if (request.method === "GET") {
-      const challenge = await getChallenge(streamerId, env);
+    const challengeList = await challengeResponse.json();
+    const record = Array.isArray(challengeList) ? challengeList[0] : null;
 
-      if (!challenge) {
-        return json({
-          ok: true,
-          challenge: null,
-          panels: [],
-        });
-      }
-
-      const panels = await getPanels(challenge.id, env);
-
-      return json({
-        ok: true,
-        challenge,
-        panels,
-      });
+    if (!record) {
+      return json({ ok: false, error: "チャレンジが見つかりません。" }, 404);
     }
 
-    if (request.method === "POST") {
-      return await saveChallenge(request, env, streamerId);
+    // パネルを取得
+    const panelsUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+    panelsUrl.searchParams.set(
+      "select",
+      "panel_number,condition_text,is_open"
+    );
+    panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
+    panelsUrl.searchParams.set("order", "panel_number.asc");
+
+    const panelsResponse = await fetch(panelsUrl.toString(), { headers });
+
+    if (!panelsResponse.ok) {
+      console.error("Public panels query failed:", panelsResponse.status);
+      return json(
+        { ok: false, error: "パネル情報を取得できませんでした。" },
+        502
+      );
     }
 
-    return json({
-      ok: false,
-      error: "GET or POST method required",
-    }, 405);
+    const panelRecords = await panelsResponse.json();
+
+    const panels = panelRecords.map((panel) => ({
+      panel_number: panel.panel_number,
+      condition_text:
+        typeof panel.condition_text === "string"
+          ? panel.condition_text
+          : "",
+      is_open: panel.is_open === true,
+    }));
+
+    const challenge = {
+      title: record.title,
+      grid_rows: record.grid_rows,
+      grid_columns: record.grid_columns,
+      image_url: record.image_url,
+      image_position_x: record.image_position_x,
+      image_position_y: record.image_position_y,
+      image_scale: record.image_scale,
+      is_started: record.is_started,
+    };
+
+    return json({ ok: true, challenge, panels });
   } catch (error) {
-    console.error("Challenge API error:", error);
-
-    return json({
-      ok: false,
-      error: "Internal server error",
-    }, 500);
+    console.error("Public challenge error:", error);
+    return json(
+      { ok: false, error: "読み込み中にエラーが発生しました。" },
+      500
+    );
   }
 }
