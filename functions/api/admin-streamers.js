@@ -126,23 +126,24 @@ export async function onRequest({ request, env }) {
 
     const passwordData = await hashPassword(password);
 
-    const insertResponse = await fetch(
-      `${baseUrl}/rest/v1/streamer_accounts`,
-      {
-        method: "POST",
-        headers: {
-          apikey: env.SUPABASE_SECRET_KEY,
-          "Content-Type": "application/json",
-          Prefer: "return=minimal",
-        },
-        body: JSON.stringify({
-          login_id: loginId,
-          password_hash: passwordData.password_hash,
-          password_salt: passwordData.password_salt,
-          is_active: true,
-        }),
-      }
-    );
+  const insertResponse = await fetch(
+  `${baseUrl}/rest/v1/streamer_accounts`,
+  {
+    method: "POST",
+    headers: {
+      apikey: env.SUPABASE_SECRET_KEY,
+      Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal",
+    },
+    body: JSON.stringify({
+      login_id: loginId,
+      password_hash: passwordData.password_hash,
+      password_salt: passwordData.password_salt,
+      is_active: true,
+    }),
+  }
+);
 
     if (insertResponse.status === 409) {
       return new Response(
