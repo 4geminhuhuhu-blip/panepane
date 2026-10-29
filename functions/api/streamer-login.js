@@ -77,7 +77,6 @@ export async function onRequest({ request, env }) {
     const accountResponse = await fetch(accountUrl.toString(), {
       headers: {
         apikey: env.SUPABASE_SECRET_KEY,
-        Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
       },
     });
 
@@ -134,7 +133,6 @@ if (!accountResponse.ok) {
         method: "POST",
         headers: {
           apikey: env.SUPABASE_SECRET_KEY,
-          Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}`,
           "Content-Type": "application/json",
           Prefer: "return=minimal",
         },
