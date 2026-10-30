@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>自由形パネル作成</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 20px;
+      background: #f5f6fa;
+      color: #263247;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+        "Noto Sans JP", sans-serif;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+    }
+
+    .description {
+      margin: 0 0 22px;
+      color: #667085;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .panel {
+      margin-bottom: 18px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #e4e7ec;
+      border-radius: 14px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 17px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #d0d5dd;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    button {
+      padding: 11px 16px;
+      border: 0;
+      border-radius: 8px;
+      background: #667085;
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    button.primary {
+      background: #635bdb;
+    }
+
+    button.danger {
+      background: #d92d20;
+    }
+
+    button:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+    }
+
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      border: 1px solid #d0d5dd;
+      border-radius: 10px;
+      background:
+        linear-gradient(45deg, #eee 25%, transparent 25%),
+        linear-gradient(-45deg, #eee 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #eee 75%),
+        linear-gradient(-45deg, transparent 75%, #eee 75%);
+      background-size: 20px 20px;
+      background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      touch-action: manipulation;
+      cursor: crosshair;
+    }
+
+    .help {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 8px;
+      background: #f2f4f7;
+      color: #475467;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .status.error {
+      color: #d92d20;
+    }
+
+    .status.success {
+      color: #039855;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .summary strong {
+      font-size: 20px;
+      color: #635bdb;
+    }
+
+    .save-area {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 18px;
+    }
+
+    .save-area button {
+      min-width: 180px;
+      padding: 14px 22px;
+      font-size: 15px;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 12px;
+      }
+
+      .panel {
+        padding: 14px;
+      }
+
+      h1 {
+        font-size: 21px;
+      }
+
+      .toolbar button {
+        flex: 1;
+      }
+
+      .save-area button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+
+    <h1>自由形パネル作成</h1>
+    <p class="description">
+      背景画像を選択し、画像の端から端へ線を引いてパネルを分割します。
+      分割が完了したら、そのまま保存できます。
+    </p>
+
+    <section class="panel">
+      <h2>① 背景画像を選択</h2>
+      <input
+        type="file"
+        id="imageInput"
+        accept="image/*"
+      >
+    </section>
+
+    <section class="panel">
+      <h2>② パネルを自由に分割</h2>
+
+      <div class="toolbar">
+        <button id="undoButton" disabled>1本戻す</button>
+        <button id="resetButton" disabled>線をすべて消す</button>
+        <button id="previewButton" class="primary" disabled>
+          分割を確認
+        </button>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="editorCanvas"></canvas>
+      </div>
+
+      <div class="help">
+        <strong>操作方法</strong><br>
+        1. 背景画像を選択します。<br>
+        2. 画像の端をクリックして線の始点を決めます。<br>
+        3. 反対側の端をクリックして線を引きます。<br>
+        4. 同じ操作を繰り返して領域を分割します。<br>
+        5. 「分割を確認」を押すとパネル数と番号を確認できます。<br><br>
+        ※ 線は画像の外周から外周へつなぐように引いてください。
+      </div>
+
+      <div id="status" class="status">
+        まず背景画像を選択してください。
+      </div>
+
+      <div class="summary">
+        <span>分割線：<strong id="lineCount">0</strong> 本</span>
+        <span>パネル数：<strong id="panelCount">0</strong> 枚</span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>③ 保存</h2>
+      <p class="description">
+        分割内容を確認したら保存してください。
+        パネルの座標情報は画像サイズに対する比率で記録します。
+      </p>
+
+      <div class="save-area">
+        <button id="saveButton" class="primary" disabled>
+          分割を保存する
+        </button>
+      </div>
+    </section>
+
+  </main>
+
+<script>
+(() => {
+  "use strict";
+
+  const canvas = document.getElementById("editorCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const imageInput = document.getElementById("imageInput");
+  const undoButton = document.getElementById("undoButton");
+  const resetButton = document.getElementById("resetButton");
+  const previewButton = document.getElementById("previewButton");
+  const saveButton = document.getElementById("saveButton");
+
+  const statusElement = document.getElementById("status");
+  const lineCountElement = document.getElementById("lineCount");
+  const panelCountElement = document.getElementById("panelCount");
+
+  const image = new Image();
+
+  let imageLoaded = false;
+  let imageDataUrl = null;
+
+  let imageWidth = 0;
+  let imageHeight = 0;
+
+  let cutLines = [];
+  let pendingPoint = null;
+
+  let polygons = [];
+  let previewMode = false;
+
+  const EDGE_TOLERANCE = 0.035;
+  const EPSILON = 1e-8;
+
+  function setStatus(message, type = "") {
+    statusElement.textContent = message;
+    statusElement.className = "status " + type;
+  }
+
+  function updateButtons() {
+    undoButton.disabled = cutLines.length === 0;
+    resetButton.disabled = cutLines.length === 0;
+    previewButton.disabled = !imageLoaded;
+    saveButton.disabled = !imageLoaded || polygons.length === 0;
+
+    lineCountElement.textContent = cutLines.length;
+    panelCountElement.textContent = polygons.length;
+  }
+
+  function resizeCanvas() {
+    if (!imageLoaded) return;
+
+    canvas.width = imageWidth;
+    canvas.height = imageHeight;
+
+    drawCanvas();
+  }
+
+  function drawCanvas() {
+    if (!imageLoaded) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(image, 0, 0, imageWidth, imageHeight);
+
+    if (previewMode && polygons.length) {
+      polygons.forEach((polygon, index) => {
+        const center = polygon.reduce(
+          (sum, point) => ({
+            x: sum.x + point.x / polygon.length,
+            y: sum.y + point.y / polygon.length
+          }),
+          { x: 0, y: 0 }
+        );
+
+        ctx.fillStyle = "rgba(99, 91, 219, 0.12)";
+        ctx.beginPath();
+
+        polygon.forEach((point, i) => {
+          if (i === 0) {
+            ctx.moveTo(point.x * imageWidth, point.y * imageHeight);
+          } else {
+            ctx.lineTo(point.x * imageWidth, point.y * imageHeight);
+          }
+        });
+
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = "#ffffff";
+        ctx.strokeStyle = "#635bdb";
+        ctx.lineWidth = Math.max(2, imageWidth / 400);
+
+        ctx.beginPath();
+        polygon.forEach((point, i) => {
+          if (i === 0) {
+            ctx.moveTo(point.x * imageWidth, point.y * imageHeight);
+          } else {
+            ctx.lineTo(point.x * imageWidth, point.y * imageHeight);
+          }
+        });
+        ctx.closePath();
+        ctx.stroke();
+
+        ctx.font = `bold ${Math.max(16, imageWidth / 30)}px sans-serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+
+        ctx.fillStyle = "rgba(0,0,0,0.65)";
+        ctx.beginPath();
+        ctx.arc(
+          center.x * imageWidth,
+          center.y * imageHeight,
+          Math.max(13, imageWidth / 35),
+          0,
+          Math.PI * 2
+        );
+        ctx.fill();
+
+        ctx.fillStyle = "#fff";
+        ctx.fillText(
+          String(index + 1),
+          center.x * imageWidth,
+          center.y * imageHeight
+        );
+      });
+    }
+
+    ctx.lineWidth = Math.max(3, imageWidth / 300);
+    ctx.strokeStyle = "#ff3b82";
+
+    cutLines.forEach(line => {
+      ctx.beginPath();
+      ctx.moveTo(line.a.x * imageWidth, line.a.y * imageHeight);
+      ctx.lineTo(line.b.x * imageWidth, line.b.y * imageHeight);
+      ctx.stroke();
+
+      drawEndpoint(line.a);
+      drawEndpoint(line.b);
+    });
+
+    if (pendingPoint) {
+      drawEndpoint(pendingPoint);
+    }
+  }
+
+  function drawEndpoint(point) {
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "#e11d68";
+    ctx.lineWidth = 3;
+
+    ctx.beginPath();
+    ctx.arc(
+      point.x * imageWidth,
+      point.y * imageHeight,
+      Math.max(5, imageWidth / 100),
+      0,
+      Math.PI * 2
+    );
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  imageInput.addEventListener("change", event => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setStatus("画像ファイルを選択してください。", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      imageDataUrl = reader.result;
+
+      image.onload = () => {
+        imageWidth = image.naturalWidth;
+        imageHeight = image.naturalHeight;
+
+        imageLoaded = true;
+        cutLines = [];
+        pendingPoint = null;
+        polygons = [];
+        previewMode = false;
+
+        resizeCanvas();
+
+        setStatus(
+          "画像を読み込みました。画像の端から端へ線を引いてください。",
+          "success"
+        );
+
+        updateButtons();
+      };
+
+      image.onerror = () => {
+        setStatus("画像を読み込めませんでした。", "error");
+      };
+
+      image.src = imageDataUrl;
+    };
+
+    reader.readAsDataURL(file);
+  });
+
+  function getCanvasPoint(event) {
+    const rect = canvas.getBoundingClientRect();
+
+    let x = (event.clientX - rect.left) / rect.width;
+    let y = (event.clientY - rect.top) / rect.height;
+
+    x = Math.max(0, Math.min(1, x));
+    y = Math.max(0, Math.min(1, y));
+
+    return snapToBoundary({ x, y });
+  }
+
+  function snapToBoundary(point) {
+    const distances = [
+      { side: "left", distance: point.x },
+      { side: "right", distance: 1 - point.x },
+      { side: "top", distance: point.y },
+      { side: "bottom", distance: 1 - point.y }
+    ];
+
+    distances.sort((a, b) => a.distance - b.distance);
+
+    if (distances[0].distance > EDGE_TOLERANCE) {
+      return null;
+    }
+
+    switch (distances[0].side) {
+      case "left":
+        return { x: 0, y: point.y };
+      case "right":
+        return { x: 1, y: point.y };
+      case "top":
+        return { x: point.x, y: 0 };
+      case "bottom":
+        return { x: point.x, y: 1 };
+    }
+  }
+
+  canvas.addEventListener("click", event => {
+    if (!imageLoaded) return;
+
+    if (previewMode) {
+      previewMode = false;
+      polygons = [];
+    }
+
+    const point = getCanvasPoint(event);
+
+    if (!point) {
+      setStatus(
+        "画像の端に近い場所をクリックしてください。",
+        "error"
+      );
+      return;
+    }
+
+    if (!pendingPoint) {
+      pendingPoint = point;
+      setStatus("終点を選択してください。");
+      drawCanvas();
+      return;
+    }
+
+    const distance = Math.hypot(
+      point.x - pendingPoint.x,
+      point.y - pendingPoint.y
+    );
+
+    if (distance < 0.02) {
+      setStatus("始点と終点が近すぎます。別の場所を選択してください。", "error");
+      return;
+    }
+
+    cutLines.push({
+      a: pendingPoint,
+      b: point
+    });
+
+    pendingPoint = null;
+    polygons = [];
+
+    setStatus("分割線を追加しました。続けて線を引くか、分割を確認してください。", "success");
+
+    updateButtons();
+    drawCanvas();
+  });
+
+  undoButton.addEventListener("click", () => {
+    if (cutLines.length === 0) return;
+
+    cutLines.pop();
+    pendingPoint = null;
+    polygons = [];
+    previewMode = false;
+
+    setStatus("最後の分割線を取り消しました。");
+    updateButtons();
+    drawCanvas();
+  });
+
+  resetButton.addEventListener("click", () => {
+    cutLines = [];
+    pendingPoint = null;
+    polygons = [];
+    previewMode = false;
+
+    setStatus("分割線をすべて削除しました。");
+    updateButtons();
+    drawCanvas();
+  });
+
+  function cross(a, b, c) {
+    return (
+      (b.x - a.x) * (c.y - a.y) -
+      (b.y - a.y) * (c.x - a.x)
+    );
+  }
+
+  function segmentIntersection(p1, p2, p3, p4) {
+    const rx = p2.x - p1.x;
+    const ry = p2.y - p1.y;
+    const sx = p4.x - p3.x;
+    const sy = p4.y - p3.y;
+
+    const denominator = rx * sy - ry * sx;
+
+    if (Math.abs(denominator) < EPSILON) {
+      return null;
+    }
+
+    const qpx = p3.x - p1.x;
+    const qpy = p3.y - p1.y;
+
+    const t = (qpx * sy - qpy * sx) / denominator;
+    const u = (qpx * ry - qpy * rx) / denominator;
+
+    if (
+      t < -EPSILON || t > 1 + EPSILON ||
+      u < -EPSILON || u > 1 + EPSILON
+    ) {
+      return null;
+    }
+
+    return {
+      x: p1.x + t * rx,
+      y: p1.y + t * ry
+    };
+  }
+
+  function distanceAlong(point, a, b) {
+    return Math.hypot(point.x - a.x, point.y - a.y);
+  }
+
+  function polygonArea(points) {
+    let area = 0;
+
+    for (let i = 0; i < points.length; i++) {
+      const a = points[i];
+      const b = points[(i + 1) % points.length];
+
+      area += a.x * b.y - b.x * a.y;
+    }
+
+    return area / 2;
+  }
+
+  function createGraph() {
+    const boundary = [
+      { x: 0, y: 0 },
+      { x: 1, y: 0 },
+      { x: 1, y: 1 },
+      { x: 0, y: 1 }
+    ];
+
+    const segments = [
+      ...boundary.map((point, i) => ({
+        a: point,
+        b: boundary[(i + 1) % boundary.length]
+      })),
+      ...cutLines
+    ];
+
+    const splitPoints = segments.map(segment => [
+      segment.a,
+      segment.b
+    ]);
+
+    for (let i = 0; i < segments.length; i++) {
+      for (let j = i + 1; j < segments.length; j++) {
+        const intersection = segmentIntersection(
+          segments[i].a,
+          segments[i].b,
+          segments[j].a,
+          segments[j].b
+        );
+
+        if (intersection) {
+          splitPoints[i].push(intersection);
+          splitPoints[j].push(intersection);
+        }
+      }
+    }
+
+    const vertices = [];
+    const vertexMap = new Map();
+
+    function getVertex(point) {
+      const key =
+        Math.round(point.x * 100000000) + ":" +
+        Math.round(point.y * 100000000);
+
+      if (!vertexMap.has(key)) {
+        const vertex = {
+          id: vertices.length,
+          x: point.x,
+          y: point.y,
+          edges: []
+        };
+
+        vertices.push(vertex);
+        vertexMap.set(key, vertex);
+      }
+
+      return vertexMap.get(key);
+    }
+
+    const edgeSet = new Set();
+
+    function addEdge(a, b) {
+      if (a.id === b.id) return;
+
+      const key = Math.min(a.id, b.id) + ":" + Math.max(a.id, b.id);
+
+      if (edgeSet.has(key)) return;
+
+      edgeSet.add(key);
+
+      a.edges.push(b);
+      b.edges.push(a);
+    }
+
+    segments.forEach((segment, index) => {
+      const points = splitPoints[index];
+
+      points.sort((p1, p2) =>
+        distanceAlong(p1, segment.a, segment.b) -
+        distanceAlong(p2, segment.a, segment.b)
+      );
+
+      const unique = [];
+
+      points.forEach(point => {
+        const last = unique[unique.length - 1];
+
+        if (
+          !last ||
+          Math.hypot(last.x - point.x, last.y - point.y) > EPSILON
+        ) {
+          unique.push(point);
+        }
+      });
+
+      for (let i = 0; i < unique.length - 1; i++) {
+        addEdge(
+          getVertex(unique[i]),
+          getVertex(unique[i + 1])
+        );
+      }
+    });
+
+    vertices.forEach(vertex => {
+      vertex.edges.sort((a, b) => {
+        const angleA = Math.atan2(
+          a.y - vertex.y,
+          a.x - vertex.x
+        );
+
+        const angleB = Math.atan2(
+          b.y - vertex.y,
+          b.x - vertex.x
+        );
+
+        return angleA - angleB;
+      });
+    });
+
+    return vertices;
+  }
+
+  function extractFaces(vertices) {
+    const visited = new Set();
+    const faces = [];
+
+    vertices.forEach(start => {
+      start.edges.forEach(next => {
+        const firstKey = start.id + ">" + next.id;
+
+        if (visited.has(firstKey)) return;
+
+        let from = start;
+        let to = next;
+
+        const points = [];
+        let closed = false;
+
+        for (let step = 0; step < 10000; step++) {
+          const key = from.id + ">" + to.id;
+
+          if (visited.has(key)) {
+            closed = key === firstKey;
+            break;
+          }
+
+          visited.add(key);
+          points.push({ x: from.x, y: from.y });
+
+          const reverseIndex = to.edges.findIndex(
+            vertex => vertex.id === from.id
+          );
+
+          if (reverseIndex < 0) break;
+
+          const nextIndex =
+            (reverseIndex - 1 + to.edges.length) % to.edges.length;
+
+          const nextVertex = to.edges[nextIndex];
+
+          from = to;
+          to = nextVertex;
+
+          if (from.id === start.id && to.id === next.id) {
+            closed = true;
+            break;
+          }
+        }
+
+        if (!closed || points.length < 3) return;
+
+        const area = polygonArea(points);
+
+        if (area > EPSILON) {
+          faces.push(points);
+        }
+      });
+    });
+
+    return faces;
+  }
+
+  function generatePolygons() {
+    if (!imageLoaded) {
+      throw new Error("背景画像がありません。");
+    }
+
+    const vertices = createGraph();
+    const faces = extractFaces(vertices);
+
+    if (faces.length === 0) {
+      throw new Error("パネル領域を認識できませんでした。分割線を確認してください。");
+    }
+
+    return faces.map(points => {
+      const normalized = points.map(point => ({
+        x: Math.round(point.x * 1000000) / 1000000,
+        y: Math.round(point.y * 1000000) / 1000000
+      }));
+
+      return {
+        polygon_points: normalized,
+        area: Math.abs(polygonArea(normalized))
+      };
+    }).sort((a, b) => {
+      const centerA = a.polygon_points.reduce(
+        (sum, point) => sum + point.y,
+        0
+      ) / a.polygon_points.length;
+
+      const centerB = b.polygon_points.reduce(
+        (sum, point) => sum + point.y,
+        0
+      ) / b.polygon_points.length;
+
+      if (Math.abs(centerA - centerB) > 0.03) {
+        return centerA - centerB;
+      }
+
+      const xA = a.polygon_points.reduce(
+        (sum, point) => sum + point.x,
+        0
+      ) / a.polygon_points.length;
+
+      const xB = b.polygon_points.reduce(
+        (sum, point) => sum + point.x,
+        0
+      ) / b.polygon_points.length;
+
+      return xA - xB;
+    });
+  }
+
+  previewButton.addEventListener("click", () => {
+    try {
+      if (pendingPoint) {
+        setStatus("線の終点が選択されていません。", "error");
+        return;
+      }
+
+      polygons = generatePolygons();
+
+      polygons = polygons.map((polygon, index) => ({
+        panel_number: index + 1,
+        polygon_points: polygon.polygon_points,
+        area: polygon.area
+      }));
+
+      previewMode = true;
+
+      drawCanvas();
+      updateButtons();
+
+      setStatus(
+        polygons.length + "枚のパネルを認識しました。確認後、保存してください。",
+        "success"
+      );
+
+    } catch (error) {
+      polygons = [];
+      previewMode = false;
+      updateButtons();
+      drawCanvas();
+
+      setStatus(error.message, "error");
+    }
+  });
+
+  function createSavePayload() {
+    return {
+      panel_type: "freeform",
+      image: imageDataUrl,
+      image_width: imageWidth,
+      image_height: imageHeight,
+      panel_count: polygons.length,
+      panels: polygons.map(polygon => ({
+        panel_number: polygon.panel_number,
+        polygon_points: polygon.polygon_points
+      }))
+    };
+  }
+
+  saveButton.addEventListener("click", () => {
+    if (!polygons.length) {
+      setStatus("先に分割を確認してください。", "error");
+      return;
+    }
+
+    const payload = createSavePayload();
+
+    /*
+      challenge.jsとの接続部分。
+
+      challenge.js側で以下のイベントを受け取ることで、
+      既存のチャレンジ保存処理につなげます。
+
+      document.addEventListener("freeform:save", async event => {
+        const payload = event.detail;
+        // ここで既存の保存APIを呼び出す
+      });
+    */
+
+    const saveEvent = new CustomEvent("freeform:save", {
+      detail: payload,
+      bubbles: true
+    });
+
+    const handled = document.dispatchEvent(saveEvent);
+
+    /*
+      現時点では保存APIとの接続が未確定です。
+      接続先がない場合はJSONファイルとして保存します。
+    */
+
+    const json = JSON.stringify(payload, null, 2);
+    const blob = new Blob([json], {
+      type: "application/json"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = "freeform-panels.json";
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+
+    setStatus(
+      "パネル情報をJSONファイルに出力しました。データベース保存はAPI接続後に有効になります。",
+      "success"
+    );
+  });
+
+  updateButtons();
+
+})();
+</script>
+
+</body>
+</html>
