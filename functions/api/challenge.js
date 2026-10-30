@@ -627,7 +627,7 @@ export async function onRequest({ request, env }) {
     }
 
     // ----------------------------------------
-    // パネルの3項目を保存
+    // パネルの3項目を文字列として保存
     // ----------------------------------------
     for (const panel of body.panels) {
       const panelNumber = Number(panel.panel_number);
@@ -640,38 +640,41 @@ export async function onRequest({ request, env }) {
         continue;
       }
 
+      const conditionText =
+        typeof panel.condition_text === "string"
+          ? panel.condition_text
+          : "";
+
       const targetValue =
-        panel.target_value === "" ||
-        panel.target_value === null ||
-        panel.target_value === undefined
-          ? 0
-          : Number(panel.target_value);
+        typeof panel.target_value === "string"
+          ? panel.target_value
+          : panel.target_value == null
+            ? ""
+            : String(panel.target_value);
 
       const currentValue =
-        panel.current_value === "" ||
-        panel.current_value === null ||
-        panel.current_value === undefined
-          ? 0
-          : Number(panel.current_value);
+        typeof panel.current_value === "string"
+          ? panel.current_value
+          : panel.current_value == null
+            ? ""
+            : String(panel.current_value);
 
       if (
-        !Number.isFinite(targetValue) ||
-        !Number.isFinite(currentValue)
+        conditionText.length > 500 ||
+        targetValue.length > 500 ||
+        currentValue.length > 500
       ) {
         return json(
           {
             ok: false,
-            error: `${panelNumber}番のマスの目標値・現在値は数値で入力してください。`,
+            error: `${panelNumber}番の条件はそれぞれ500文字以内で入力してください。`,
           },
           400
         );
       }
 
       const panelData = {
-        condition_text:
-          typeof panel.condition_text === "string"
-            ? panel.condition_text
-            : "",
+        condition_text: conditionText,
         target_value: targetValue,
         current_value: currentValue,
         updated_at: new Date().toISOString(),
