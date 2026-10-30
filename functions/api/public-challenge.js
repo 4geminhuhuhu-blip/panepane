@@ -1,4 +1,3 @@
-
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -22,10 +21,10 @@ export async function onRequest({ request, env }) {
   const streamerId = url.searchParams.get("id");
 
   if (!streamerId || streamerId.length > 100) {
-    return json(
-      { ok: false, error: "配信者IDが指定されていません。" },
-      400
-    );
+    return json({
+      ok: false,
+      error: "配信者IDが指定されていません。",
+    }, 400);
   }
 
   const baseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
@@ -34,7 +33,6 @@ export async function onRequest({ request, env }) {
   };
 
   try {
-    // チャレンジ情報を取得
     const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
 
     challengeUrl.searchParams.set(
@@ -51,6 +49,7 @@ export async function onRequest({ request, env }) {
         "image_scale",
         "is_started",
         "is_ended",
+        "featured_panel_number",
       ].join(",")
     );
 
@@ -71,10 +70,10 @@ export async function onRequest({ request, env }) {
         errorText
       );
 
-      return json(
-        { ok: false, error: "チャレンジ情報を取得できませんでした。" },
-        502
-      );
+      return json({
+        ok: false,
+        error: "チャレンジ情報を取得できませんでした。",
+      }, 502);
     }
 
     const challengeList = await challengeResponse.json();
@@ -83,14 +82,15 @@ export async function onRequest({ request, env }) {
       : null;
 
     if (!record) {
-      return json(
-        { ok: false, error: "チャレンジが見つかりません。" },
-        404
-      );
+      return json({
+        ok: false,
+        error: "チャレンジが見つかりません。",
+      }, 404);
     }
 
-    // パネル情報を取得
-    const panelsUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+    const panelsUrl = new URL(
+      `${baseUrl}/rest/v1/challenge_panels`
+    );
 
     panelsUrl.searchParams.set(
       "select",
@@ -114,15 +114,14 @@ export async function onRequest({ request, env }) {
         errorText
       );
 
-      return json(
-        { ok: false, error: "パネル情報を取得できませんでした。" },
-        502
-      );
+      return json({
+        ok: false,
+        error: "パネル情報を取得できませんでした。",
+      }, 502);
     }
 
     const panelRecords = await panelsResponse.json();
 
-    // 公開用データに整形
     const panels = panelRecords
       .map((panel) => ({
         panel_number: Number(panel.panel_number),
@@ -156,6 +155,10 @@ export async function onRequest({ request, env }) {
       image_scale: record.image_scale,
       is_started: record.is_started === true,
       is_ended: record.is_ended === true,
+      featured_panel_number:
+        record.featured_panel_number == null
+          ? null
+          : Number(record.featured_panel_number),
     };
 
     return json({
@@ -166,12 +169,9 @@ export async function onRequest({ request, env }) {
   } catch (error) {
     console.error("Public challenge error:", error);
 
-    return json(
-      {
-        ok: false,
-        error: "読み込み中にエラーが発生しました。",
-      },
-      500
-    );
+    return json({
+      ok: false,
+      error: "読み込み中にエラーが発生しました。",
+    }, 500);
   }
 }
