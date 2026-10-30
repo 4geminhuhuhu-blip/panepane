@@ -7,6 +7,9 @@
   <meta name="theme-color" content="#f5f5f5">
   <title>パネパン｜チャレンジ</title>
 
+  <!-- 画像保存用ライブラリ -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
   <style>
     * {
       box-sizing: border-box;
@@ -154,7 +157,7 @@
       display: none;
     }
 
-    /* ★ 重点パネルの強調 */
+    /* 重点パネル */
     .panel.featured {
       position: relative;
       z-index: 1;
@@ -164,13 +167,52 @@
         0 0 10px rgba(255, 152, 0, .65);
     }
 
-    /* 開いた後も重点パネルの枠は残す */
     .panel.open.featured {
       border: 4px solid #ff9800;
       background: transparent;
       box-shadow:
         inset 0 0 0 2px rgba(255, 243, 224, .8),
         0 0 10px rgba(255, 152, 0, .65);
+    }
+
+    /* 画像保存ボタン */
+    .save-image-area {
+      margin: 20px 0 8px;
+      text-align: center;
+    }
+
+    .save-image-button {
+      display: inline-block;
+      width: 100%;
+      max-width: 340px;
+      padding: 15px 20px;
+      border: none;
+      border-radius: 999px;
+      background: #d98b70;
+      color: #fff;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(150, 90, 65, .2);
+      transition: opacity .2s, transform .2s;
+    }
+
+    .save-image-button:hover {
+      opacity: .9;
+      transform: translateY(-2px);
+    }
+
+    .save-image-button:disabled {
+      opacity: .55;
+      cursor: wait;
+      transform: none;
+    }
+
+    .save-image-help {
+      margin: 8px 0 0;
+      color: #888;
+      font-size: 12px;
+      line-height: 1.5;
     }
 
     .message {
@@ -188,6 +230,139 @@
       text-align: center;
       color: #888;
       font-size: 11px;
+    }
+
+    /* =================================
+       保存画像用デザイン
+       1080px × 1080px
+    ================================= */
+
+    .export-card {
+      position: fixed;
+      left: -12000px;
+      top: 0;
+      width: 1080px;
+      height: 1080px;
+      padding: 48px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background:
+        radial-gradient(circle at 10% 10%, #fff8ed 0, transparent 28%),
+        radial-gradient(circle at 90% 90%, #f9e9e5 0, transparent 30%),
+        #fffaf4;
+      color: #604b42;
+      font-family: sans-serif;
+    }
+
+    .export-decoration {
+      position: absolute;
+      color: #e8b9a5;
+      font-size: 52px;
+      opacity: .7;
+      pointer-events: none;
+    }
+
+    .export-decoration.top-left {
+      top: 20px;
+      left: 28px;
+    }
+
+    .export-decoration.top-right {
+      top: 20px;
+      right: 28px;
+    }
+
+    .export-decoration.bottom-left {
+      bottom: 20px;
+      left: 28px;
+    }
+
+    .export-decoration.bottom-right {
+      bottom: 20px;
+      right: 28px;
+    }
+
+    .export-title {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      margin: 0 0 12px;
+      color: #77594e;
+      text-align: center;
+      font-size: 42px;
+      line-height: 1.3;
+      font-weight: bold;
+      overflow-wrap: anywhere;
+    }
+
+    .export-progress-text {
+      margin: 0 0 12px;
+      color: #a16e5c;
+      font-size: 25px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .export-progress-track {
+      width: 650px;
+      height: 18px;
+      margin-bottom: 22px;
+      overflow: hidden;
+      border-radius: 999px;
+      background: #f0ddd4;
+    }
+
+    .export-progress-bar {
+      width: 0;
+      height: 100%;
+      border-radius: 999px;
+      background: #91b69b;
+    }
+
+    .export-board {
+      position: relative;
+      flex: 0 0 auto;
+      width: 850px;
+      height: 850px;
+      overflow: hidden;
+      background: #fff;
+      border: 5px solid #e8cabb;
+      border-radius: 20px;
+      isolation: isolate;
+    }
+
+    .export-board .panel {
+      padding: 8px;
+      gap: 6px;
+    }
+
+    .export-board .panel-item {
+      font-size: 17px;
+      line-height: 1.3;
+    }
+
+    .export-board .panel-detail {
+      font-size: 13px;
+      line-height: 1.3;
+    }
+
+    .export-board .panel.featured,
+    .export-board .panel.open.featured {
+      border: 5px solid #ff9800;
+      box-shadow:
+        inset 0 0 0 2px #fff3e0,
+        0 0 12px rgba(255, 152, 0, .65);
+    }
+
+    .export-footer {
+      margin-top: auto;
+      padding-top: 12px;
+      color: #b18472;
+      font-size: 23px;
+      font-weight: bold;
+      letter-spacing: 3px;
     }
 
     @media (max-width: 480px) {
@@ -233,6 +408,10 @@
       .panel.featured,
       .panel.open.featured {
         border-width: 3px;
+      }
+
+      .save-image-button {
+        font-size: 15px;
       }
     }
 
@@ -281,10 +460,49 @@
       チャレンジ情報を読み込んでいます。
     </div>
 
+    <div id="saveImageArea" class="save-image-area hidden">
+      <button
+        type="button"
+        id="saveImageButton"
+        class="save-image-button"
+      >
+        📸 現在の状態を画像で保存
+      </button>
+      <p class="save-image-help" id="saveImageHelp">
+        XなどのSNSで応援を呼びかけるときに使えます。
+      </p>
+    </div>
+
     <div class="update-note" id="updateNote">
       最新のチャレンジ状態を自動更新しています。
     </div>
   </main>
+
+  <!-- 画像保存専用のレイアウト -->
+  <div id="exportCard" class="export-card" aria-hidden="true">
+    <div class="export-decoration top-left">✿</div>
+    <div class="export-decoration top-right">♡</div>
+    <div class="export-decoration bottom-left">♡</div>
+    <div class="export-decoration bottom-right">✿</div>
+
+    <h2 id="exportTitle" class="export-title">
+      立ち絵チャレンジ
+    </h2>
+
+    <div id="exportProgressText" class="export-progress-text">
+      0 / 0 枚オープン（0%）
+    </div>
+
+    <div class="export-progress-track">
+      <div id="exportProgressBar" class="export-progress-bar"></div>
+    </div>
+
+    <div id="exportBoard" class="export-board"></div>
+
+    <div class="export-footer">
+      ♡ パネパン ♡
+    </div>
+  </div>
 
   <script>
     const params = new URLSearchParams(location.search);
@@ -300,6 +518,18 @@
     const messageEl = document.getElementById("message");
     const updateNote = document.getElementById("updateNote");
 
+    const saveImageArea = document.getElementById("saveImageArea");
+    const saveImageButton = document.getElementById("saveImageButton");
+    const saveImageHelp = document.getElementById("saveImageHelp");
+
+    const exportCard = document.getElementById("exportCard");
+    const exportTitle = document.getElementById("exportTitle");
+    const exportProgressText =
+      document.getElementById("exportProgressText");
+    const exportProgressBar =
+      document.getElementById("exportProgressBar");
+    const exportBoard = document.getElementById("exportBoard");
+
     // 自動更新間隔
     const UPDATE_INTERVAL = 2000;
 
@@ -307,9 +537,12 @@
     let isLoading = false;
     let isFinished = false;
     let currentImageUrl = "";
+    let latestChallenge = null;
+    let latestPanels = [];
 
     function showError(message) {
       board.classList.add("hidden");
+      saveImageArea.classList.add("hidden");
       messageEl.textContent = message;
       messageEl.classList.remove("hidden");
       updateNote.classList.add("hidden");
@@ -339,6 +572,8 @@
             console.error("立ち絵を読み込めませんでした。");
           };
 
+          // 画像保存時に外部画像を扱えるようにする
+          imageEl.crossOrigin = "anonymous";
           imageEl.src = imageUrl;
         } else {
           imageEl.removeAttribute("src");
@@ -357,7 +592,6 @@
       const cell = document.createElement("div");
       cell.className = "panel";
 
-      // 重点パネルならオレンジ色の枠を付ける
       if (
         featuredPanelNumber !== null &&
         Number(panel.panel_number) === featuredPanelNumber
@@ -442,6 +676,136 @@
       progressBar.style.width = `${percent}%`;
     }
 
+    function updateExportCard(challenge, panels) {
+      const rows = Number(challenge.grid_rows);
+      const columns = Number(challenge.grid_columns);
+
+      const featuredPanelNumber =
+        challenge.featured_panel_number == null
+          ? null
+          : Number(challenge.featured_panel_number);
+
+      const openedCount = panels.filter(
+        panel => panel.is_open === true
+      ).length;
+
+      const total = rows * columns;
+      const percent = Math.round((openedCount / total) * 100);
+
+      exportTitle.textContent =
+        challenge.title || "立ち絵チャレンジ";
+
+      exportProgressText.textContent =
+        `${openedCount} / ${total} 枚オープン（${percent}%）`;
+
+      exportProgressBar.style.width = `${percent}%`;
+
+      // 現在の盤面を複製して保存用レイアウトへ配置
+      const boardClone = board.cloneNode(true);
+
+      boardClone.id = "exportBoardClone";
+      boardClone.classList.remove("hidden");
+      boardClone.classList.add("export-board");
+
+      boardClone.style.width = "850px";
+      boardClone.style.height = "850px";
+      boardClone.style.aspectRatio = "1 / 1";
+
+      exportBoard.replaceChildren(boardClone);
+    }
+
+    async function saveCurrentImage() {
+      if (saveImageButton.disabled) {
+        return;
+      }
+
+      if (typeof html2canvas !== "function") {
+        alert(
+          "画像保存機能を読み込めませんでした。ページを再読み込みしてください。"
+        );
+        return;
+      }
+
+      if (!latestChallenge || !latestPanels.length) {
+        alert("チャレンジ情報がまだ読み込まれていません。");
+        return;
+      }
+
+      saveImageButton.disabled = true;
+      saveImageButton.textContent = "画像を作成しています...";
+
+      try {
+        updateExportCard(latestChallenge, latestPanels);
+
+        // 立ち絵が読み込まれるのを待つ
+        const exportImage =
+          exportBoard.querySelector(".character img");
+
+        if (
+          exportImage &&
+          exportImage.complete === false
+        ) {
+          await new Promise((resolve) => {
+            exportImage.onload = resolve;
+            exportImage.onerror = resolve;
+          });
+        }
+
+        // 描画タイミングを確保
+        await new Promise(resolve => requestAnimationFrame(resolve));
+
+        const canvas = await html2canvas(exportCard, {
+          backgroundColor: "#fffaf4",
+          scale: 1,
+          width: 1080,
+          height: 1080,
+          useCORS: true,
+          allowTaint: false,
+          logging: false
+        });
+
+        const blob = await new Promise((resolve) => {
+          canvas.toBlob(resolve, "image/png");
+        });
+
+        if (!blob) {
+          throw new Error("画像ファイルを作成できませんでした。");
+        }
+
+        const imageUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = imageUrl;
+        link.download =
+          `パネパン_${new Date().toISOString().slice(0, 10)}.png`;
+
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => {
+          URL.revokeObjectURL(imageUrl);
+        }, 1000);
+
+        saveImageHelp.textContent =
+          "画像を保存しました！SNSで応援を呼びかけてみてください♡";
+
+      } catch (error) {
+        console.error("画像保存エラー:", error);
+
+        alert(
+          "画像を保存できませんでした。立ち絵画像の読み込みや通信状態をご確認ください。"
+        );
+
+        saveImageHelp.textContent =
+          "画像保存に失敗しました。もう一度お試しください。";
+      } finally {
+        saveImageButton.disabled = false;
+        saveImageButton.textContent =
+          "📸 現在の状態を画像で保存";
+      }
+    }
+
     async function loadChallenge() {
       if (!streamerId || isLoading || isFinished) {
         return;
@@ -491,7 +855,9 @@
           throw new Error("パネル情報が正しくありません。");
         }
 
-        // APIから重点パネル番号を取得
+        latestChallenge = challenge;
+        latestPanels = panels;
+
         const featuredPanelNumber =
           challenge.featured_panel_number == null
             ? null
@@ -513,10 +879,9 @@
 
         board.classList.remove("hidden");
         messageEl.classList.add("hidden");
+        saveImageArea.classList.remove("hidden");
         updateNote.classList.remove("hidden");
 
-        // 終了状態を取得したら自動更新を停止。
-        // 取得した最終状態はそのまま画面に残す。
         if (challenge.is_ended === true) {
           isFinished = true;
           stopAutoUpdate();
@@ -525,9 +890,6 @@
       } catch (error) {
         console.error(error);
 
-        // 初回読み込みに失敗した場合はエラーを表示。
-        // 2回目以降の一時的な通信エラーでは、
-        // すでに表示している盤面を消さない。
         if (board.classList.contains("hidden")) {
           statusEl.textContent = "";
           progressText.textContent = "";
@@ -563,6 +925,11 @@
         updateTimer = null;
       }
     }
+
+    saveImageButton.addEventListener(
+      "click",
+      saveCurrentImage
+    );
 
     // ページを閉じる・移動する際にタイマーを停止
     window.addEventListener("pagehide", stopAutoUpdate);
