@@ -54,7 +54,7 @@ export async function onRequest({ request, env }) {
       ].join(",")
     );
 
-    challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+    challengeUrl.searchParams.set("id", `eq.${streamerId}`);
     challengeUrl.searchParams.set("limit", "1");
 
     const challengeResponse = await fetch(challengeUrl, {
