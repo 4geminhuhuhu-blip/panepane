@@ -4,26 +4,33 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5f5">
   <title>パネパン｜チャレンジ</title>
+
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
-      padding: 20px 12px;
+      padding: 20px 12px 32px;
       font-family: sans-serif;
       background: #f5f5f5;
       color: #333;
     }
 
     .container {
+      width: 100%;
       max-width: 700px;
       margin: 0 auto;
     }
 
     h1 {
+      margin: 8px 0 16px;
       text-align: center;
-      font-size: 24px;
+      font-size: clamp(20px, 5vw, 28px);
+      line-height: 1.4;
       overflow-wrap: anywhere;
     }
 
@@ -31,11 +38,18 @@
       text-align: center;
       margin: 12px 0;
       font-weight: bold;
+      font-size: 16px;
+    }
+
+    .status.ended {
+      color: #d9534f;
     }
 
     .progress-text {
       text-align: center;
       margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: bold;
     }
 
     .progress-track {
@@ -43,14 +57,14 @@
       background: #ddd;
       border-radius: 20px;
       overflow: hidden;
-      margin-bottom: 18px;
+      margin-bottom: 20px;
     }
 
     .progress-bar {
       width: 0%;
       height: 100%;
       background: #42b883;
-      transition: width .2s;
+      transition: width .25s ease;
     }
 
     .board {
@@ -60,27 +74,35 @@
       overflow: hidden;
       background: #fff;
       border: 1px solid #ccc;
+      border-radius: 4px;
+      isolation: isolate;
     }
 
+    /* 立ち絵：パネルより後ろ */
     .character {
       position: absolute;
       inset: 0;
+      z-index: 1;
       display: flex;
       align-items: center;
       justify-content: center;
+      overflow: hidden;
       pointer-events: none;
     }
 
     .character img {
+      display: block;
       width: 100%;
       height: 100%;
       object-fit: contain;
-      transform-origin: center;
+      transform-origin: center center;
     }
 
+    /* パネル：立ち絵より前 */
     .panels {
       position: absolute;
       inset: 0;
+      z-index: 2;
       display: grid;
       gap: 2px;
       background: transparent;
@@ -90,37 +112,135 @@
       min-width: 0;
       min-height: 0;
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 4px;
+      gap: 5px;
+      padding: clamp(3px, 1vw, 8px);
       text-align: center;
+      overflow: hidden;
       overflow-wrap: anywhere;
+      word-break: break-word;
       white-space: pre-wrap;
-      font-size: clamp(9px, 2.5vw, 16px);
-      background: rgba(255, 255, 255, .94);
+      background: rgba(255, 255, 255, .96);
       color: #333;
+      border: 1px solid rgba(0, 0, 0, .12);
     }
 
+    .panel-item {
+      width: 100%;
+      font-size: clamp(11px, 2.5vw, 17px);
+      font-weight: bold;
+      line-height: 1.3;
+    }
+
+    .panel-detail {
+      width: 100%;
+      font-size: clamp(9px, 2vw, 14px);
+      line-height: 1.35;
+    }
+
+    .panel-detail span {
+      font-weight: bold;
+    }
+
+    /* 開いたパネルは透明にして立ち絵を見せる */
     .panel.open {
-      background: transparent !important;
-      color: transparent;
+      background: transparent;
       border: none;
+    }
+
+    .panel.open > * {
+      display: none;
     }
 
     .message {
       text-align: center;
       padding: 24px 8px;
+      line-height: 1.6;
     }
 
-    .hidden { display: none; }
+    .hidden {
+      display: none !important;
+    }
+
+    .update-note {
+      margin-top: 12px;
+      text-align: center;
+      color: #888;
+      font-size: 11px;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 12px 8px 24px;
+      }
+
+      h1 {
+        margin-bottom: 12px;
+      }
+
+      .status {
+        font-size: 14px;
+      }
+
+      .progress-text {
+        font-size: 12px;
+      }
+
+      .progress-track {
+        margin-bottom: 14px;
+        height: 10px;
+      }
+
+      .panels {
+        gap: 1px;
+      }
+
+      .panel {
+        gap: 2px;
+        padding: 2px;
+      }
+
+      .panel-item {
+        font-size: clamp(9px, 2.6vw, 13px);
+      }
+
+      .panel-detail {
+        font-size: clamp(8px, 2vw, 11px);
+        line-height: 1.2;
+      }
+    }
+
+    @media (max-width: 350px) {
+      .panel {
+        gap: 1px;
+        padding: 1px;
+      }
+
+      .panel-item {
+        font-size: 9px;
+      }
+
+      .panel-detail {
+        font-size: 7px;
+      }
+    }
   </style>
 </head>
+
 <body>
   <main class="container">
     <h1 id="challengeTitle">立ち絵チャレンジ</h1>
-    <div class="status" id="challengeStatus">読み込み中...</div>
 
-    <div class="progress-text" id="progressText">進捗を読み込み中...</div>
+    <div class="status" id="challengeStatus">
+      読み込み中...
+    </div>
+
+    <div class="progress-text" id="progressText">
+      進捗を読み込み中...
+    </div>
+
     <div class="progress-track">
       <div class="progress-bar" id="progressBar"></div>
     </div>
@@ -129,10 +249,17 @@
       <div class="character">
         <img id="characterImage" alt="チャレンジの立ち絵">
       </div>
+
       <div id="panels" class="panels"></div>
     </div>
 
-    <div id="message" class="message">チャレンジ情報を読み込んでいます。</div>
+    <div id="message" class="message">
+      チャレンジ情報を読み込んでいます。
+    </div>
+
+    <div class="update-note" id="updateNote">
+      最新のチャレンジ状態を自動更新しています。
+    </div>
   </main>
 
   <script>
@@ -147,32 +274,160 @@
     const panelsEl = document.getElementById("panels");
     const imageEl = document.getElementById("characterImage");
     const messageEl = document.getElementById("message");
+    const updateNote = document.getElementById("updateNote");
+
+    // 自動更新間隔
+    const UPDATE_INTERVAL = 2000;
+
+    let updateTimer = null;
+    let isLoading = false;
+    let isFinished = false;
+    let currentImageUrl = "";
 
     function showError(message) {
       board.classList.add("hidden");
       messageEl.textContent = message;
       messageEl.classList.remove("hidden");
+      updateNote.classList.add("hidden");
+    }
+
+    function setStatus(challenge) {
+      statusEl.classList.remove("ended");
+
+      if (challenge.is_ended === true) {
+        statusEl.textContent = "チャレンジ終了";
+        statusEl.classList.add("ended");
+      } else if (challenge.is_started === true) {
+        statusEl.textContent = "チャレンジ中";
+      } else {
+        statusEl.textContent = "開始前";
+      }
+    }
+
+    function setCharacter(challenge) {
+      const imageUrl = challenge.image_url || "";
+
+      if (imageUrl !== currentImageUrl) {
+        currentImageUrl = imageUrl;
+
+        if (imageUrl) {
+          imageEl.onerror = () => {
+            console.error("立ち絵を読み込めませんでした。");
+          };
+
+          imageEl.src = imageUrl;
+        } else {
+          imageEl.removeAttribute("src");
+        }
+      }
+
+      const x = Number(challenge.image_position_x) || 0;
+      const y = Number(challenge.image_position_y) || 0;
+      const scale = (Number(challenge.image_scale) || 100) / 100;
+
+      imageEl.style.transform =
+        `translate(${x}px, ${y}px) scale(${scale})`;
+    }
+
+    function createPanel(panel) {
+      const cell = document.createElement("div");
+      cell.className = "panel";
+
+      if (panel.is_open === true) {
+        cell.classList.add("open");
+        return cell;
+      }
+
+      const item = document.createElement("div");
+      item.className = "panel-item";
+      item.textContent = panel.condition_text || "";
+
+      const target = document.createElement("div");
+      target.className = "panel-detail";
+
+      const targetLabel = document.createElement("span");
+      targetLabel.textContent = "目標：";
+
+      const targetValue = document.createElement("span");
+      targetValue.textContent = panel.target_value || "";
+
+      target.appendChild(targetLabel);
+      target.appendChild(targetValue);
+
+      const current = document.createElement("div");
+      current.className = "panel-detail";
+
+      const currentLabel = document.createElement("span");
+      currentLabel.textContent = "あと：";
+
+      const currentValue = document.createElement("span");
+      currentValue.textContent = panel.current_value || "";
+
+      current.appendChild(currentLabel);
+      current.appendChild(currentValue);
+
+      cell.appendChild(item);
+      cell.appendChild(target);
+      cell.appendChild(current);
+
+      return cell;
+    }
+
+    function renderPanels(panels, rows, columns) {
+      panelsEl.style.gridTemplateColumns =
+        `repeat(${columns}, minmax(0, 1fr))`;
+
+      panelsEl.style.gridTemplateRows =
+        `repeat(${rows}, minmax(0, 1fr))`;
+
+      const fragment = document.createDocumentFragment();
+
+      let openedCount = 0;
+
+      panels.forEach((panel) => {
+        if (panel.is_open === true) {
+          openedCount++;
+        }
+
+        fragment.appendChild(createPanel(panel));
+      });
+
+      panelsEl.replaceChildren(fragment);
+
+      const total = rows * columns;
+      const percent = Math.round((openedCount / total) * 100);
+
+      progressText.textContent =
+        `${openedCount} / ${total} 枚オープン（${percent}%）`;
+
+      progressBar.style.width = `${percent}%`;
     }
 
     async function loadChallenge() {
-      if (!streamerId) {
-        showError("URLに配信者IDが指定されていません。");
-        statusEl.textContent = "";
-        progressText.textContent = "";
-        progressBar.style.width = "0%";
+      if (!streamerId || isLoading || isFinished) {
         return;
       }
 
+      isLoading = true;
+
       try {
         const response = await fetch(
-          "/api/public-challenge?id=" + encodeURIComponent(streamerId),
-          { cache: "no-store" }
+          "/api/public-challenge?id=" +
+            encodeURIComponent(streamerId),
+          {
+            cache: "no-store",
+            headers: {
+              "Cache-Control": "no-cache",
+            },
+          }
         );
 
         const data = await response.json();
 
         if (!response.ok || !data.ok) {
-          throw new Error(data.error || "チャレンジを読み込めませんでした。");
+          throw new Error(
+            data.error || "チャレンジを読み込めませんでした。"
+          );
         }
 
         const challenge = data.challenge;
@@ -182,82 +437,94 @@
           throw new Error("チャレンジが見つかりません。");
         }
 
-        titleEl.textContent = challenge.title || "立ち絵チャレンジ";
-
         const rows = Number(challenge.grid_rows);
         const columns = Number(challenge.grid_columns);
 
         if (
-          !Number.isInteger(rows) || !Number.isInteger(columns) ||
-          rows < 3 || rows > 10 || columns < 3 || columns > 10 ||
+          !Number.isInteger(rows) ||
+          !Number.isInteger(columns) ||
+          rows < 3 ||
+          rows > 10 ||
+          columns < 3 ||
+          columns > 10 ||
           panels.length !== rows * columns
         ) {
           throw new Error("パネル情報が正しくありません。");
         }
 
-        if (challenge.image_url) {
-          imageEl.src = challenge.image_url;
-          imageEl.style.transform =
-            "translate(" +
-            (Number(challenge.image_position_x) || 0) + "px, " +
-            (Number(challenge.image_position_y) || 0) + "px) " +
-            "scale(" + ((Number(challenge.image_scale) || 100) / 100) + ")";
-          imageEl.onerror = () => {
-            showError("立ち絵を読み込めませんでした。");
-          };
-        } else {
-          imageEl.removeAttribute("src");
-        }
+        titleEl.textContent =
+          challenge.title || "立ち絵チャレンジ";
 
-        panelsEl.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
-        panelsEl.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
-        panelsEl.replaceChildren();
-
-        let openedCount = 0;
-
-        panels.forEach((panel) => {
-          const cell = document.createElement("div");
-          cell.className = "panel";
-
-          if (panel.is_open) {
-            cell.classList.add("open");
-            cell.textContent = "";
-            openedCount++;
-          } else {
-            cell.textContent = panel.condition_text || "";
-          }
-
-          panelsEl.appendChild(cell);
-        });
-
-        const total = rows * columns;
-        const percent = Math.round((openedCount / total) * 100);
-
-        progressText.textContent =
-          `${openedCount} / ${total} 枚オープン（${percent}%）`;
-        progressBar.style.width = percent + "%";
-
-        // チャレンジの状態を表示
-        if (challenge.is_ended === true) {
-          statusEl.textContent = "チャレンジ終了";
-        } else if (challenge.is_started === true) {
-          statusEl.textContent = "チャレンジ中";
-        } else {
-          statusEl.textContent = "開始前";
-        }
+        setCharacter(challenge);
+        renderPanels(panels, rows, columns);
+        setStatus(challenge);
 
         board.classList.remove("hidden");
         messageEl.classList.add("hidden");
+        updateNote.classList.remove("hidden");
+
+        // 終了状態を取得したら自動更新を停止。
+        // 取得した最終状態はそのまま画面に残す。
+        if (challenge.is_ended === true) {
+          isFinished = true;
+          stopAutoUpdate();
+          updateNote.textContent = "チャレンジは終了しました。";
+        }
       } catch (error) {
         console.error(error);
-        statusEl.textContent = "";
-        progressText.textContent = "";
-        progressBar.style.width = "0%";
-        showError(error.message || "読み込みに失敗しました。");
+
+        // 初回読み込みに失敗した場合はエラーを表示。
+        // 2回目以降の一時的な通信エラーでは、
+        // すでに表示している盤面を消さない。
+        if (board.classList.contains("hidden")) {
+          statusEl.textContent = "";
+          progressText.textContent = "";
+          progressBar.style.width = "0%";
+
+          showError(
+            error.message || "読み込みに失敗しました。"
+          );
+        } else {
+          updateNote.textContent =
+            "通信を再試行しています...";
+        }
+      } finally {
+        isLoading = false;
       }
     }
 
-    loadChallenge();
+    function startAutoUpdate() {
+      stopAutoUpdate();
+
+      if (isFinished) {
+        return;
+      }
+
+      updateTimer = setInterval(() => {
+        loadChallenge();
+      }, UPDATE_INTERVAL);
+    }
+
+    function stopAutoUpdate() {
+      if (updateTimer !== null) {
+        clearInterval(updateTimer);
+        updateTimer = null;
+      }
+    }
+
+    // ページを閉じる・移動する際にタイマーを停止
+    window.addEventListener("pagehide", stopAutoUpdate);
+
+    if (!streamerId) {
+      showError("URLに配信者IDが指定されていません。");
+      statusEl.textContent = "";
+      progressText.textContent = "";
+      progressBar.style.width = "0%";
+    } else {
+      loadChallenge().then(() => {
+        startAutoUpdate();
+      });
+    }
   </script>
 </body>
 </html>
