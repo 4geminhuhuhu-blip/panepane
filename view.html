@@ -154,6 +154,25 @@
       display: none;
     }
 
+    /* ★ 重点パネルの強調 */
+    .panel.featured {
+      position: relative;
+      z-index: 1;
+      border: 4px solid #ff9800;
+      box-shadow:
+        inset 0 0 0 2px #fff3e0,
+        0 0 10px rgba(255, 152, 0, .65);
+    }
+
+    /* 開いた後も重点パネルの枠は残す */
+    .panel.open.featured {
+      border: 4px solid #ff9800;
+      background: transparent;
+      box-shadow:
+        inset 0 0 0 2px rgba(255, 243, 224, .8),
+        0 0 10px rgba(255, 152, 0, .65);
+    }
+
     .message {
       text-align: center;
       padding: 24px 8px;
@@ -209,6 +228,11 @@
       .panel-detail {
         font-size: clamp(8px, 2vw, 11px);
         line-height: 1.2;
+      }
+
+      .panel.featured,
+      .panel.open.featured {
+        border-width: 3px;
       }
     }
 
@@ -329,9 +353,17 @@
         `translate(${x}px, ${y}px) scale(${scale})`;
     }
 
-    function createPanel(panel) {
+    function createPanel(panel, featuredPanelNumber) {
       const cell = document.createElement("div");
       cell.className = "panel";
+
+      // 重点パネルならオレンジ色の枠を付ける
+      if (
+        featuredPanelNumber !== null &&
+        Number(panel.panel_number) === featuredPanelNumber
+      ) {
+        cell.classList.add("featured");
+      }
 
       if (panel.is_open === true) {
         cell.classList.add("open");
@@ -373,7 +405,12 @@
       return cell;
     }
 
-    function renderPanels(panels, rows, columns) {
+    function renderPanels(
+      panels,
+      rows,
+      columns,
+      featuredPanelNumber
+    ) {
       panelsEl.style.gridTemplateColumns =
         `repeat(${columns}, minmax(0, 1fr))`;
 
@@ -389,7 +426,9 @@
           openedCount++;
         }
 
-        fragment.appendChild(createPanel(panel));
+        fragment.appendChild(
+          createPanel(panel, featuredPanelNumber)
+        );
       });
 
       panelsEl.replaceChildren(fragment);
@@ -452,11 +491,24 @@
           throw new Error("パネル情報が正しくありません。");
         }
 
+        // APIから重点パネル番号を取得
+        const featuredPanelNumber =
+          challenge.featured_panel_number == null
+            ? null
+            : Number(challenge.featured_panel_number);
+
         titleEl.textContent =
           challenge.title || "立ち絵チャレンジ";
 
         setCharacter(challenge);
-        renderPanels(panels, rows, columns);
+
+        renderPanels(
+          panels,
+          rows,
+          columns,
+          featuredPanelNumber
+        );
+
         setStatus(challenge);
 
         board.classList.remove("hidden");
