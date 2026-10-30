@@ -894,150 +894,163 @@
       progressBar.style.width = `${percent}%`;
     }
 
-    function updateExportCard(challenge, panels) {
-      const rows = Number(challenge.grid_rows);
-      const columns = Number(challenge.grid_columns);
+function updateExportCard(challenge, panels) {
+  const rows = Number(challenge.grid_rows);
+  const columns = Number(challenge.grid_columns);
 
-      const openedCount = panels.filter(
-        panel => panel.is_open === true
-      ).length;
+  const openedCount = panels.filter(
+    panel => panel.is_open === true
+  ).length;
 
-      const total = rows * columns;
-      const percent = Math.round((openedCount / total) * 100);
+  const total = rows * columns;
+  const percent = Math.round((openedCount / total) * 100);
 
-      exportTitle.textContent =
-        challenge.title || "立ち絵チャレンジ";
+  exportTitle.textContent =
+    challenge.title || "立ち絵チャレンジ";
 
-      exportProgressText.textContent =
-        `${openedCount} / ${total} 枚オープン（${percent}%）`;
+  exportProgressText.textContent =
+    `${openedCount} / ${total} 枚オープン（${percent}%）`;
 
-      exportProgressBar.style.width = `${percent}%`;
+  exportProgressBar.style.width = `${percent}%`;
 
-      const boardClone = board.cloneNode(true);
+  // 画面に表示されているボードをそのまま複製する
+  const boardClone = board.cloneNode(true);
 
-      boardClone.id = "exportBoardClone";
-      boardClone.classList.remove("hidden");
-      boardClone.classList.add("export-board");
+  boardClone.id = "exportBoardClone";
+  boardClone.classList.remove("hidden");
+  boardClone.classList.add("export-board");
 
-      boardClone.style.width = "850px";
-      boardClone.style.height = "850px";
-      boardClone.style.aspectRatio = "1 / 1";
+  boardClone.style.width = "850px";
+  boardClone.style.height = "850px";
+  boardClone.style.aspectRatio = "1 / 1";
 
-      // 保存画像ではアニメーション途中の扉を残さず、
-      // API上の最新状態に合わせた完成状態を表示する。
-      const clonedPanels =
-        boardClone.querySelectorAll(".panel");
+  // 立ち絵の位置調整を保存画像のサイズに合わせて拡大する
+  const screenBoardWidth = board.getBoundingClientRect().width;
+  const exportBoardWidth = 850;
+  const ratio = screenBoardWidth > 0
+    ? exportBoardWidth / screenBoardWidth
+    : 1;
 
-      clonedPanels.forEach((cell, index) => {
-        const panel = panels[index];
+  const exportCharacterImage =
+    boardClone.querySelector(".character img");
 
-        if (!panel) return;
+  if (exportCharacterImage) {
+    const x = Number(challenge.image_position_x) || 0;
+    const y = Number(challenge.image_position_y) || 0;
+    const scale = (Number(challenge.image_scale) || 100) / 100;
 
-        cell.classList.remove("opening");
+    exportCharacterImage.style.transform =
+      `translate(${x * ratio}px, ${y * ratio}px) scale(${scale})`;
+  }
 
-        cell.querySelectorAll(
-          ".door-left, .door-right"
-        ).forEach(door => door.remove());
+  // パネルの扉・開閉状態・重点パネルの枠は変更しない
+  // 画面に表示されている状態をそのまま残す
 
-        if (panel.is_open === true) {
-          cell.classList.add("open");
-        } else {
-          cell.classList.remove("open");
-        }
+  exportBoard.replaceChildren(boardClone);
+}
+
+async function saveCurrentImage() {
+  if (saveImageButton.disabled) {
+    return;
+  }
+
+  if (typeof html2canvas !== "function") {
+    alert(
+      "画像保存機能を読み込めませんでした。ページを再読み込みしてください。"
+    );
+    return;
+  }
+
+  if (!latestChallenge || !latestPanels.length) {
+    alert("チャレンジ情報がまだ読み込まれていません。");
+    return;
+  }
+
+  saveImageButton.disabled = true;
+  saveImageButton.textContent = "画像を作成しています...";
+
+  try {
+    // 扉の開閉アニメーション中なら、終了してから保存する
+    // 保存画像で扉が中途半端な状態になるのを防ぐ
+    const waitStart = Date.now();
+
+    while (
+      panelsEl.querySelector(".panel.opening") &&
+      Date.now() - waitStart < 2000
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 最新の画面表示を複製する
+    updateExportCard(latestChallenge, latestPanels);
+
+    const exportImage =
+      exportBoard.querySelector(".character img");
+
+    if (
+      exportImage &&
+      exportImage.complete === false
+    ) {
+      await new Promise((resolve) => {
+        exportImage.onload = resolve;
+        exportImage.onerror = resolve;
       });
-
-      exportBoard.replaceChildren(boardClone);
     }
 
-    async function saveCurrentImage() {
-      if (saveImageButton.disabled) {
-        return;
-      }
+    await new Promise(resolve => requestAnimationFrame(resolve));
 
-      if (typeof html2canvas !== "function") {
-        alert(
-          "画像保存機能を読み込めませんでした。ページを再読み込みしてください。"
-        );
-        return;
-      }
+    const canvas = await html2canvas(exportCard, {
+      backgroundColor: "#f3f0e8",
+      scale: 1,
+      width: 1080,
+      height: 1080,
+      useCORS: true,
+      allowTaint: false,
+      logging: false
+    });
 
-      if (!latestChallenge || !latestPanels.length) {
-        alert("チャレンジ情報がまだ読み込まれていません。");
-        return;
-      }
+    const blob = await new Promise((resolve) => {
+      canvas.toBlob(resolve, "image/png");
+    });
 
-      saveImageButton.disabled = true;
-      saveImageButton.textContent = "画像を作成しています...";
-
-      try {
-        updateExportCard(latestChallenge, latestPanels);
-
-        const exportImage =
-          exportBoard.querySelector(".character img");
-
-        if (
-          exportImage &&
-          exportImage.complete === false
-        ) {
-          await new Promise((resolve) => {
-            exportImage.onload = resolve;
-            exportImage.onerror = resolve;
-          });
-        }
-
-        await new Promise(resolve => requestAnimationFrame(resolve));
-
-        const canvas = await html2canvas(exportCard, {
-          backgroundColor: "#f3f0e8",
-          scale: 1,
-          width: 1080,
-          height: 1080,
-          useCORS: true,
-          allowTaint: false,
-          logging: false
-        });
-
-        const blob = await new Promise((resolve) => {
-          canvas.toBlob(resolve, "image/png");
-        });
-
-        if (!blob) {
-          throw new Error("画像ファイルを作成できませんでした。");
-        }
-
-        const imageUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-
-        link.href = imageUrl;
-        link.download =
-          `パネパン_${new Date().toISOString().slice(0, 10)}.png`;
-
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-
-        setTimeout(() => {
-          URL.revokeObjectURL(imageUrl);
-        }, 1000);
-
-        saveImageHelp.textContent =
-          "画像を保存しました。ぜひSNSでも共有してください！";
-
-      } catch (error) {
-        console.error("画像保存エラー:", error);
-
-        alert(
-          "画像を保存できませんでした。立ち絵画像の読み込みや通信状態をご確認ください。"
-        );
-
-        saveImageHelp.textContent =
-          "画像保存に失敗しました。もう一度お試しください。";
-      } finally {
-        saveImageButton.disabled = false;
-        saveImageButton.textContent =
-          "📷 現在の状態を画像で保存";
-      }
+    if (!blob) {
+      throw new Error("画像ファイルを作成できませんでした。");
     }
+
+    const imageUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = imageUrl;
+    link.download =
+      `パネパン_${new Date().toISOString().slice(0, 10)}.png`;
+
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    setTimeout(() => {
+      URL.revokeObjectURL(imageUrl);
+    }, 1000);
+
+    saveImageHelp.textContent =
+      "画像を保存しました。ぜひSNSでも共有してください！";
+
+  } catch (error) {
+    console.error("画像保存エラー:", error);
+
+    alert(
+      "画像を保存できませんでした。立ち絵画像の読み込みや通信状態をご確認ください。"
+    );
+
+    saveImageHelp.textContent =
+      "画像保存に失敗しました。もう一度お試しください。";
+
+  } finally {
+    saveImageButton.disabled = false;
+    saveImageButton.textContent =
+      "📷 現在の状態を画像で保存";
+  }
+}
 
     async function loadChallenge() {
       if (!streamerId || isLoading || isFinished) {
