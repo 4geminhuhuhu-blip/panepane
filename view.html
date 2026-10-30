@@ -1175,15 +1175,48 @@
 
         await new Promise(resolve => requestAnimationFrame(resolve));
 
-        const canvas = await html2canvas(exportCard, {
-          backgroundColor: "#f3f0e8",
-          scale: 1,
-          width: 1080,
-          height: 1080,
-          useCORS: true,
-          allowTaint: false,
-          logging: false
+    const canvas = await html2canvas(exportCard, {
+      backgroundColor: "#f3f0e8",
+      scale: 1,
+      width: 1080,
+      height: 1080,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+
+      onclone: (clonedDocument) => {
+         const clonedCard =
+          clonedDocument.getElementById("exportCard");
+
+        if (!clonedCard) return;
+
+        // 保存画像用の複製内だけ、グラデーションと動きを無効化
+        clonedCard.style.backgroundImage = "none";
+
+        clonedCard.querySelectorAll("*").forEach((element) => {
+          element.style.backgroundImage = "none";
+          element.style.animation = "none";
+          element.style.transition = "none";
         });
+
+         // 保存画像の背景色を明示
+         clonedCard.style.backgroundColor = "#f3f0e8";
+
+        // 扉を単色にする
+        clonedCard.querySelectorAll(
+          ".door-left, .door-right"
+        ).forEach((door) => {
+          door.style.background = "#eeeae1";
+        });
+
+        // 進捗バーを単色にする
+        clonedCard.querySelectorAll(
+          ".export-progress-bar"
+        ).forEach((bar) => {
+          bar.style.background = "#879b89";
+        });
+      }
+    });
 
         const blob = await new Promise((resolve) => {
           canvas.toBlob(resolve, "image/png");
