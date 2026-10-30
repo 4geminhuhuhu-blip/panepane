@@ -1,4 +1,3 @@
-
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -70,31 +69,21 @@ async function getStreamerId(request, env) {
 
 export async function onRequest({ request, env }) {
   if (!["GET", "POST", "PATCH"].includes(request.method)) {
-    return json(
-      { ok: false, error: "Method not allowed" },
-      405
-    );
+    return json({ ok: false, error: "Method not allowed" }, 405);
   }
 
   if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
-    return json(
-      { ok: false, error: "Server configuration error" },
-      500
-    );
+    return json({ ok: false, error: "Server configuration error" }, 500);
   }
 
   try {
     const streamerId = await getStreamerId(request, env);
 
     if (!streamerId) {
-      return json(
-        {
-          ok: false,
-          error:
-            "ログインの有効期限が切れています。再ログインしてください。",
-        },
-        401
-      );
+      return json({
+        ok: false,
+        error: "ログインの有効期限が切れています。再ログインしてください。",
+      }, 401);
     }
 
     const baseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
@@ -105,39 +94,25 @@ export async function onRequest({ request, env }) {
       "Content-Type": "application/json",
     };
 
-    // ログイン中の配信者のチャレンジ情報
-    const challengeUrl = new URL(
-      `${baseUrl}/rest/v1/challenges`
-    );
+    const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
 
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended"
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended,featured_panel_number"
     );
 
-    challengeUrl.searchParams.set(
-      "streamer_id",
-      `eq.${streamerId}`
-    );
-
+    challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
     challengeUrl.searchParams.set("limit", "1");
 
-    // ========================================
     // GET：チャレンジとパネル情報を取得
-    // ========================================
     if (request.method === "GET") {
-      const challengeResponse = await fetch(challengeUrl, {
-        headers,
-      });
+      const challengeResponse = await fetch(challengeUrl, { headers });
 
       if (!challengeResponse.ok) {
-        return json(
-          {
-            ok: false,
-            error: "チャレンジ情報を取得できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "チャレンジ情報を取得できませんでした。",
+        }, 502);
       }
 
       const list = await challengeResponse.json();
@@ -159,29 +134,16 @@ export async function onRequest({ request, env }) {
         "select",
         "panel_number,condition_text,target_value,current_value,is_open"
       );
+      panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
+      panelsUrl.searchParams.set("order", "panel_number.asc");
 
-      panelsUrl.searchParams.set(
-        "challenge_id",
-        `eq.${record.id}`
-      );
-
-      panelsUrl.searchParams.set(
-        "order",
-        "panel_number.asc"
-      );
-
-      const panelsResponse = await fetch(panelsUrl, {
-        headers,
-      });
+      const panelsResponse = await fetch(panelsUrl, { headers });
 
       if (!panelsResponse.ok) {
-        return json(
-          {
-            ok: false,
-            error: "パネル情報を取得できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "パネル情報を取得できませんでした。",
+        }, 502);
       }
 
       return json({
@@ -191,66 +153,114 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    // ========================================
-    // PATCH：チャレンジ開始・終了・パネル開閉
-    // ========================================
+    // PATCH：チャレンジ操作
     if (request.method === "PATCH") {
       let body;
 
       try {
         body = await request.json();
       } catch {
-        return json(
-          {
-            ok: false,
-            error: "リクエストの形式が正しくありません。",
-          },
-          400
-        );
+        return json({
+          ok: false,
+          error: "リクエストの形式が正しくありません。",
+        }, 400);
       }
 
-      // チャレンジ情報を取得
-      const currentResponse = await fetch(challengeUrl, {
-        headers,
-      });
+      const currentResponse = await fetch(challengeUrl, { headers });
 
       if (!currentResponse.ok) {
-        return json(
-          {
-            ok: false,
-            error: "チャレンジ情報を取得できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "チャレンジ情報を取得できませんでした。",
+        }, 502);
       }
 
       const currentList = await currentResponse.json();
       const current = currentList[0];
 
       if (!current) {
-        return json(
-          {
-            ok: false,
-            error: "チャレンジが見つかりません。",
-          },
-          404
-        );
+        return json({
+          ok: false,
+          error: "チャレンジが見つかりません。",
+        }, 404);
       }
 
-      // 終了済みチャレンジの操作を禁止
       if (current.is_ended === true) {
-        return json(
-          {
-            ok: false,
-            error: "このチャレンジは終了しています。再開できません。",
-          },
-          400
-        );
+        return json({
+          ok: false,
+          error: "このチャレンジは終了しています。再開できません。",
+        }, 400);
       }
 
-      // ----------------------------------------
+      // 重点パネル指定・解除
+      if (body.action === "set-featured-panel") {
+        const panelNumber =
+          body.panel_number === null
+            ? null
+            : Number(body.panel_number);
+
+        if (
+          panelNumber !== null &&
+          (
+            !Number.isInteger(panelNumber) ||
+            panelNumber < 1 ||
+            panelNumber > current.grid_rows * current.grid_columns
+          )
+        ) {
+          return json({
+            ok: false,
+            error: "重点パネルの番号が正しくありません。",
+          }, 400);
+        }
+
+        const updateUrl = new URL(
+          `${baseUrl}/rest/v1/challenges`
+        );
+
+        updateUrl.searchParams.set("id", `eq.${current.id}`);
+        updateUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+        updateUrl.searchParams.set("is_ended", "eq.false");
+
+        const response = await fetch(updateUrl, {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify({
+            featured_panel_number: panelNumber,
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Featured panel update failed:", errorText);
+
+          return json({
+            ok: false,
+            error: "重点パネルを保存できませんでした。",
+          }, 502);
+        }
+
+        const updated = await response.json();
+
+        if (!updated.length) {
+          return json({
+            ok: false,
+            error: "重点パネルを保存できませんでした。",
+          }, 400);
+        }
+
+        return json({
+          ok: true,
+          featured_panel_number: panelNumber,
+          message: panelNumber === null
+            ? "重点パネルを解除しました。"
+            : "重点パネルを設定しました。",
+        });
+      }
+
       // チャレンジ開始
-      // ----------------------------------------
       if (body.action === "start") {
         const startUrl = new URL(
           `${baseUrl}/rest/v1/challenges`
@@ -266,31 +276,23 @@ export async function onRequest({ request, env }) {
             ...headers,
             Prefer: "return=representation",
           },
-          body: JSON.stringify({
-            is_started: true,
-          }),
+          body: JSON.stringify({ is_started: true }),
         });
 
         if (!response.ok) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジを開始できませんでした。",
-            },
-            502
-          );
+          return json({
+            ok: false,
+            error: "チャレンジを開始できませんでした。",
+          }, 502);
         }
 
         const updated = await response.json();
 
         if (!updated.length) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジを開始できませんでした。",
-            },
-            400
-          );
+          return json({
+            ok: false,
+            error: "チャレンジを開始できませんでした。",
+          }, 400);
         }
 
         return json({
@@ -299,18 +301,13 @@ export async function onRequest({ request, env }) {
         });
       }
 
-      // ----------------------------------------
       // チャレンジ終了
-      // ----------------------------------------
       if (body.action === "end") {
         if (!current.is_started) {
-          return json(
-            {
-              ok: false,
-              error: "開始前のチャレンジは終了できません。",
-            },
-            400
-          );
+          return json({
+            ok: false,
+            error: "開始前のチャレンジは終了できません。",
+          }, 400);
         }
 
         const endUrl = new URL(
@@ -327,31 +324,23 @@ export async function onRequest({ request, env }) {
             ...headers,
             Prefer: "return=representation",
           },
-          body: JSON.stringify({
-            is_ended: true,
-          }),
+          body: JSON.stringify({ is_ended: true }),
         });
 
         if (!response.ok) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジを終了できませんでした。",
-            },
-            502
-          );
+          return json({
+            ok: false,
+            error: "チャレンジを終了できませんでした。",
+          }, 502);
         }
 
         const updated = await response.json();
 
         if (!updated.length) {
-          return json(
-            {
-              ok: false,
-              error: "チャレンジはすでに終了している可能性があります。",
-            },
-            400
-          );
+          return json({
+            ok: false,
+            error: "チャレンジはすでに終了している可能性があります。",
+          }, 400);
         }
 
         return json({
@@ -360,9 +349,7 @@ export async function onRequest({ request, env }) {
         });
       }
 
-      // ----------------------------------------
       // パネルの開閉
-      // ----------------------------------------
       if (body.action === "set-panel") {
         const panelNumber = Number(body.panel_number);
 
@@ -371,52 +358,35 @@ export async function onRequest({ request, env }) {
           panelNumber < 1 ||
           typeof body.is_open !== "boolean"
         ) {
-          return json(
-            {
-              ok: false,
-              error: "パネルの指定が正しくありません。",
-            },
-            400
-          );
+          return json({
+            ok: false,
+            error: "パネルの指定が正しくありません。",
+          }, 400);
         }
 
         if (!current.is_started) {
-          return json(
-            {
-              ok: false,
-              error:
-                "チャレンジを開始してから操作してください。",
-            },
-            400
-          );
+          return json({
+            ok: false,
+            error: "チャレンジを開始してから操作してください。",
+          }, 400);
         }
 
         if (
           panelNumber >
           current.grid_rows * current.grid_columns
         ) {
-          return json(
-            {
-              ok: false,
-              error: "パネル番号が範囲外です。",
-            },
-            400
-          );
+          return json({
+            ok: false,
+            error: "パネル番号が範囲外です。",
+          }, 400);
         }
 
         const panelUrl = new URL(
           `${baseUrl}/rest/v1/challenge_panels`
         );
 
-        panelUrl.searchParams.set(
-          "challenge_id",
-          `eq.${current.id}`
-        );
-
-        panelUrl.searchParams.set(
-          "panel_number",
-          `eq.${panelNumber}`
-        );
+        panelUrl.searchParams.set("challenge_id", `eq.${current.id}`);
+        panelUrl.searchParams.set("panel_number", `eq.${panelNumber}`);
 
         const now = new Date().toISOString();
 
@@ -434,25 +404,19 @@ export async function onRequest({ request, env }) {
         });
 
         if (!panelResponse.ok) {
-          return json(
-            {
-              ok: false,
-              error: "パネルの状態を変更できませんでした。",
-            },
-            502
-          );
+          return json({
+            ok: false,
+            error: "パネルの状態を変更できませんでした。",
+          }, 502);
         }
 
         const updatedPanels = await panelResponse.json();
 
         if (!updatedPanels.length) {
-          return json(
-            {
-              ok: false,
-              error: "対象のパネルが見つかりません。",
-            },
-            404
-          );
+          return json({
+            ok: false,
+            error: "対象のパネルが見つかりません。",
+          }, 404);
         }
 
         return json({
@@ -463,30 +427,22 @@ export async function onRequest({ request, env }) {
         });
       }
 
-      return json(
-        {
-          ok: false,
-          error: "不正な操作です。",
-        },
-        400
-      );
+      return json({
+        ok: false,
+        error: "不正な操作です。",
+      }, 400);
     }
 
-    // ========================================
     // POST：チャレンジ設定を保存
-    // ========================================
     let body;
 
     try {
       body = await request.json();
     } catch {
-      return json(
-        {
-          ok: false,
-          error: "リクエストの形式が正しくありません。",
-        },
-        400
-      );
+      return json({
+        ok: false,
+        error: "リクエストの形式が正しくありません。",
+      }, 400);
     }
 
     const title =
@@ -506,18 +462,12 @@ export async function onRequest({ request, env }) {
       rows * columns > 100 ||
       !Array.isArray(body.panels)
     ) {
-      return json(
-        {
-          ok: false,
-          error: "入力内容を確認してください。",
-        },
-        400
-      );
+      return json({
+        ok: false,
+        error: "入力内容を確認してください。",
+      }, 400);
     }
 
-    // ----------------------------------------
-    // パネルデータを事前検証・整形
-    // ----------------------------------------
     const panelNumbers = new Set();
     const panelDataList = [];
     const now = new Date().toISOString();
@@ -530,23 +480,17 @@ export async function onRequest({ request, env }) {
         panelNumber < 1 ||
         panelNumber > rows * columns
       ) {
-        return json(
-          {
-            ok: false,
-            error: "パネル番号が正しくありません。",
-          },
-          400
-        );
+        return json({
+          ok: false,
+          error: "パネル番号が正しくありません。",
+        }, 400);
       }
 
       if (panelNumbers.has(panelNumber)) {
-        return json(
-          {
-            ok: false,
-            error: `${panelNumber}番のパネルが重複しています。`,
-          },
-          400
-        );
+        return json({
+          ok: false,
+          error: `${panelNumber}番のパネルが重複しています。`,
+        }, 400);
       }
 
       panelNumbers.add(panelNumber);
@@ -575,13 +519,10 @@ export async function onRequest({ request, env }) {
         targetValue.length > 500 ||
         currentValue.length > 500
       ) {
-        return json(
-          {
-            ok: false,
-            error: `${panelNumber}番の条件はそれぞれ500文字以内で入力してください。`,
-          },
-          400
-        );
+        return json({
+          ok: false,
+          error: `${panelNumber}番の条件はそれぞれ500文字以内で入力してください。`,
+        }, 400);
       }
 
       panelDataList.push({
@@ -593,35 +534,23 @@ export async function onRequest({ request, env }) {
       });
     }
 
-    // ----------------------------------------
-    // 既存のチャレンジを取得
-    // ----------------------------------------
-    const existingResponse = await fetch(challengeUrl, {
-      headers,
-    });
+    const existingResponse = await fetch(challengeUrl, { headers });
 
     if (!existingResponse.ok) {
-      return json(
-        {
-          ok: false,
-          error: "現在の設定を取得できませんでした。",
-        },
-        502
-      );
+      return json({
+        ok: false,
+        error: "現在の設定を取得できませんでした。",
+      }, 502);
     }
 
     const existingList = await existingResponse.json();
     const existing = existingList[0];
 
-    // 終了済みチャレンジの設定変更を禁止
     if (existing?.is_ended === true) {
-      return json(
-        {
-          ok: false,
-          error: "終了したチャレンジの設定は変更できません。",
-        },
-        400
-      );
+      return json({
+        ok: false,
+        error: "終了したチャレンジの設定は変更できません。",
+      }, 400);
     }
 
     const challengeData = {
@@ -650,24 +579,14 @@ export async function onRequest({ request, env }) {
       const updateResponse = await fetch(updateUrl, {
         method: "PATCH",
         headers,
-        body: JSON.stringify({
-          title: challengeData.title,
-          grid_rows: challengeData.grid_rows,
-          grid_columns: challengeData.grid_columns,
-          image_position_x: challengeData.image_position_x,
-          image_position_y: challengeData.image_position_y,
-          image_scale: challengeData.image_scale,
-        }),
+        body: JSON.stringify(challengeData),
       });
 
       if (!updateResponse.ok) {
-        return json(
-          {
-            ok: false,
-            error: "設定を保存できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "設定を保存できませんでした。",
+        }, 502);
       }
     } else {
       const createResponse = await fetch(
@@ -683,39 +602,29 @@ export async function onRequest({ request, env }) {
       );
 
       if (!createResponse.ok) {
-        return json(
-          {
-            ok: false,
-            error: "チャレンジを作成できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "チャレンジを作成できませんでした。",
+        }, 502);
       }
 
       const created = await createResponse.json();
       challengeId = created[0]?.id;
 
       if (!challengeId) {
-        return json(
-          {
-            ok: false,
-            error: "チャレンジIDを取得できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "チャレンジIDを取得できませんでした。",
+        }, 502);
       }
     }
 
-    // ----------------------------------------
-    // パネルを一括保存（UPSERT）
-    // ----------------------------------------
+    // パネル一括保存。開閉状態は上書きしない
     if (panelDataList.length > 0) {
       const panelsUrl = new URL(
         `${baseUrl}/rest/v1/challenge_panels`
       );
 
-      // challenge_id と panel_number の組み合わせで
-      // 既存パネルを判定する
       panelsUrl.searchParams.set(
         "on_conflict",
         "challenge_id,panel_number"
@@ -737,20 +646,12 @@ export async function onRequest({ request, env }) {
 
       if (!saveResponse.ok) {
         const errorText = await saveResponse.text();
+        console.error("Panel bulk save failed:", errorText);
 
-        console.error(
-          "Panel bulk save failed:",
-          saveResponse.status,
-          errorText
-        );
-
-        return json(
-          {
-            ok: false,
-            error: "パネル設定を一括保存できませんでした。",
-          },
-          502
-        );
+        return json({
+          ok: false,
+          error: "パネル設定を一括保存できませんでした。",
+        }, 502);
       }
     }
 
@@ -761,12 +662,9 @@ export async function onRequest({ request, env }) {
   } catch (error) {
     console.error("Challenge API error:", error);
 
-    return json(
-      {
-        ok: false,
-        error: "処理中にエラーが発生しました。",
-      },
-      500
-    );
+    return json({
+      ok: false,
+      error: "処理中にエラーが発生しました。",
+    }, 500);
   }
 }
