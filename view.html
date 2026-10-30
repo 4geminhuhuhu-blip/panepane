@@ -156,8 +156,8 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      align-items: center;
-      gap: 5px;
+      align-items: stretch;
+      gap: 3px;
       padding: clamp(3px, 1vw, 8px);
       text-align: center;
       overflow: hidden;
@@ -168,6 +168,82 @@
       color: var(--ink);
       border: 1px solid rgba(107, 111, 98, .22);
       isolation: isolate;
+    }
+
+    /* 上の枠：項目と目標 */
+    .panel-top {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      min-width: 0;
+      padding: clamp(3px, .7vw, 7px);
+      border-radius: 5px;
+      background: rgba(243, 240, 232, .96);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+    }
+
+    /* 項目：はなぞめフォント */
+    .panel-item {
+      width: 100%;
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(11px, 2.5vw, 17px);
+      font-weight: normal;
+      line-height: 1.3;
+      color: #485249;
+    }
+
+    /* 目標：ゴシック体・小さめ */
+    .panel-target {
+      width: 100%;
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(8px, 1.8vw, 12px);
+      line-height: 1.25;
+      color: #777a70;
+      font-weight: normal;
+    }
+
+    .panel-target span {
+      font-weight: bold;
+    }
+
+    /* 下の枠：あと */
+    .panel-bottom {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      min-width: 0;
+      padding: clamp(3px, .8vw, 8px);
+      border-radius: 5px;
+      background: rgba(232, 225, 213, .97);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1px;
+    }
+
+    /* あと：ゴシック体 */
+    .panel-current-label {
+      width: 100%;
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(8px, 1.8vw, 12px);
+      line-height: 1.2;
+      color: #777a70;
+      font-weight: bold;
+    }
+
+    /* あとの数値：大きく表示 */
+    .panel-current-value {
+      width: 100%;
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(15px, 3.5vw, 25px);
+      line-height: 1.15;
+      font-weight: bold;
+      color: #424841;
     }
 
     /* 扉の左右パーツ */
@@ -234,31 +310,6 @@
 
     .door-right::before {
       left: 7px;
-    }
-
-    /* パネル内の文字 */
-    .panel-item,
-    .panel-detail {
-      position: relative;
-      z-index: 2;
-      width: 100%;
-    }
-
-    .panel-item {
-      font-size: clamp(11px, 2.5vw, 17px);
-      font-weight: bold;
-      line-height: 1.3;
-      color: #485249;
-    }
-
-    .panel-detail {
-      font-size: clamp(9px, 2vw, 14px);
-      line-height: 1.35;
-      color: #777a70;
-    }
-
-    .panel-detail span {
-      font-weight: bold;
     }
 
     /* 扉が開くアニメーション */
@@ -485,9 +536,15 @@
       isolation: isolate;
     }
 
+    /* 保存画像でも閲覧ページと同じパネル表示 */
     .export-board .panel {
       padding: 8px;
       gap: 6px;
+    }
+
+    .export-board .panel-top {
+      padding: 7px;
+      gap: 4px;
     }
 
     .export-board .panel-item {
@@ -495,9 +552,24 @@
       line-height: 1.3;
     }
 
-    .export-board .panel-detail {
+    .export-board .panel-target {
       font-size: 13px;
       line-height: 1.3;
+    }
+
+    .export-board .panel-bottom {
+      padding: 8px;
+      gap: 2px;
+    }
+
+    .export-board .panel-current-label {
+      font-size: 13px;
+      line-height: 1.2;
+    }
+
+    .export-board .panel-current-value {
+      font-size: 25px;
+      line-height: 1.15;
     }
 
     .export-board .panel.featured,
@@ -548,13 +620,32 @@
         padding: 2px;
       }
 
+      .panel-top {
+        padding: 2px;
+        gap: 2px;
+      }
+
       .panel-item {
         font-size: clamp(9px, 2.6vw, 13px);
       }
 
-      .panel-detail {
-        font-size: clamp(8px, 2vw, 11px);
-        line-height: 1.2;
+      .panel-target {
+        font-size: clamp(7px, 1.8vw, 10px);
+        line-height: 1.15;
+      }
+
+      .panel-bottom {
+        padding: 2px;
+        gap: 1px;
+      }
+
+      .panel-current-label {
+        font-size: clamp(7px, 1.8vw, 10px);
+      }
+
+      .panel-current-value {
+        font-size: clamp(12px, 3.5vw, 19px);
+        line-height: 1.1;
       }
 
       .panel.featured,
@@ -573,12 +664,29 @@
         padding: 1px;
       }
 
+      .panel-top {
+        padding: 1px;
+        gap: 1px;
+      }
+
       .panel-item {
         font-size: 9px;
       }
 
-      .panel-detail {
+      .panel-target {
         font-size: 7px;
+      }
+
+      .panel-bottom {
+        padding: 1px;
+      }
+
+      .panel-current-label {
+        font-size: 7px;
+      }
+
+      .panel-current-value {
+        font-size: 12px;
       }
     }
 
@@ -787,7 +895,7 @@
           leftDoor.remove();
           rightDoor.remove();
           cell.querySelectorAll(
-            ".panel-item, .panel-detail"
+            ".panel-top, .panel-bottom"
           ).forEach(el => el.remove());
         };
 
@@ -810,12 +918,16 @@
         return cell;
       }
 
+      // 上の枠：項目と目標
+      const top = document.createElement("div");
+      top.className = "panel-top";
+
       const item = document.createElement("div");
       item.className = "panel-item";
       item.textContent = panel.condition_text || "";
 
       const target = document.createElement("div");
-      target.className = "panel-detail";
+      target.className = "panel-target";
 
       const targetLabel = document.createElement("span");
       targetLabel.textContent = "目標：";
@@ -826,21 +938,26 @@
       target.appendChild(targetLabel);
       target.appendChild(targetValue);
 
-      const current = document.createElement("div");
-      current.className = "panel-detail";
+      top.appendChild(item);
+      top.appendChild(target);
 
-      const currentLabel = document.createElement("span");
-      currentLabel.textContent = "あと：";
+      // 下の枠：あと
+      const bottom = document.createElement("div");
+      bottom.className = "panel-bottom";
 
-      const currentValue = document.createElement("span");
+      const currentLabel = document.createElement("div");
+      currentLabel.className = "panel-current-label";
+      currentLabel.textContent = "あと";
+
+      const currentValue = document.createElement("div");
+      currentValue.className = "panel-current-value";
       currentValue.textContent = panel.current_value || "";
 
-      current.appendChild(currentLabel);
-      current.appendChild(currentValue);
+      bottom.appendChild(currentLabel);
+      bottom.appendChild(currentValue);
 
-      cell.appendChild(item);
-      cell.appendChild(target);
-      cell.appendChild(current);
+      cell.appendChild(top);
+      cell.appendChild(bottom);
 
       return cell;
     }
