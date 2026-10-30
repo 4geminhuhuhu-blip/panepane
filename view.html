@@ -956,21 +956,21 @@ function updateExportCard(challenge, panels) {
       door => door.remove()
     );
 
-    if (panel.is_open === true) {
-      // 開いているパネルは扉なし
-      cell.classList.add("open");
-    } else {
-      // 閉じているパネルは扉あり
-      cell.classList.remove("open");
+　if (panel.is_open === true) {
+  // 開いているパネルは扉なし
+  cell.classList.add("open");
+} else {
+  // 閉じているパネルは扉あり
+  cell.classList.remove("open");
 
-      const leftDoor = document.createElement("div");
-      leftDoor.className = "door-left";
+  const leftDoor = document.createElement("div");
+  leftDoor.className = "door-left";
 
-      const rightDoor = document.createElement("div");
-      rightDoor.className = "door-right";
+  const rightDoor = document.createElement("div");
+  rightDoor.className = "door-right";
 
-      cell.prepend(leftDoor, rightDoor);
-    }
+  cell.prepend(leftDoor, rightDoor);
+}
   });
 
   exportBoard.replaceChildren(boardClone);
