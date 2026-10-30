@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -112,6 +113,24 @@
       font-size: 12px;
     }
 
+    /* 重点パネル */
+    .panel-item.featured-panel {
+      border: 3px solid #d97706;
+      background: #fffbeb;
+      box-shadow: 0 0 0 3px #fef3c7;
+    }
+
+    .featured-badge {
+      display: inline-block;
+      margin: 0 0 8px;
+      padding: 5px 11px;
+      border-radius: 20px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 12px;
+      font-weight: bold;
+    }
+
     button {
       padding: 12px 18px;
       border: 0;
@@ -129,6 +148,17 @@
 
     .secondary-button { background: #64748b; }
     .danger-button { background: #b91c1c; }
+
+    .featured-button {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      background: #b45309;
+    }
+
+    .featured-button.is-selected {
+      background: #64748b;
+    }
 
     .actions {
       display: flex;
@@ -460,6 +490,7 @@
 
   let challenge = null;
   let panels = [];
+  let featuredPanelNumber = null;
   let loading = false;
   let saving = false;
   let uploadingImage = false;
@@ -638,13 +669,18 @@
     endButton.hidden = !challenge || !started || ended;
     endButton.disabled = loading || saving;
 
-    panelList.querySelectorAll("input").forEach(function (input) {
-      input.disabled = ended || loading || saving;
-    });
-
-    panelList.querySelectorAll("button").forEach(function (button) {
+    panelList.querySelectorAll(".panel-open-button").forEach(function (button) {
       button.disabled =
         !challenge || !started || ended || loading || saving;
+    });
+
+    panelList.querySelectorAll(".featured-button").forEach(function (button) {
+      button.disabled =
+        !challenge || ended || loading || saving;
+    });
+
+    panelList.querySelectorAll("input").forEach(function (input) {
+      input.disabled = ended || loading || saving;
     });
   }
 
@@ -670,6 +706,13 @@
     for (let number = 1; number <= count; number++) {
       const item = document.createElement("div");
       item.className = "panel-item";
+
+      const isFeatured =
+        Number(featuredPanelNumber) === number;
+
+      if (isFeatured) {
+        item.classList.add("featured-panel");
+      }
 
       const panel = panels.find(function (p) {
         return Number(p.panel_number) === number;
@@ -734,10 +777,12 @@
         savedValues.current_value
       );
 
+      // パネル開閉ボタン
       const panelButton = document.createElement("button");
       panelButton.type = "button";
+      panelButton.className = "panel-open-button";
       panelButton.textContent = isOpen ? "閉じる" : "開く";
-      panelButton.className = isOpen ? "secondary-button" : "";
+      panelButton.className += isOpen ? " secondary-button" : "";
       panelButton.disabled =
         !challenge || !challenge.is_started || isEnded() || loading || saving;
 
@@ -746,6 +791,34 @@
       });
 
       panelButton.style.marginTop = "14px";
+
+      // 重点パネル表示
+      if (isFeatured) {
+        const badge = document.createElement("div");
+        badge.className = "featured-badge";
+        badge.textContent = "★ 重点パネル";
+        item.appendChild(badge);
+      }
+
+      // 重点パネル指定・解除ボタン
+      const featuredButton = document.createElement("button");
+      featuredButton.type = "button";
+      featuredButton.className = "featured-button";
+
+      featuredButton.textContent = isFeatured
+        ? "重点指定を解除"
+        : "★ 重点パネルに指定";
+
+      if (isFeatured) {
+        featuredButton.classList.add("is-selected");
+      }
+
+      featuredButton.disabled =
+        !challenge || isEnded() || loading || saving;
+
+      featuredButton.addEventListener("click", function () {
+        setFeaturedPanel(isFeatured ? null : number);
+      });
 
       item.append(
         heading,
@@ -756,13 +829,99 @@
         targetInput.input,
         currentInput.label,
         currentInput.input,
-        panelButton
+        panelButton,
+        featuredButton
       );
 
       panelList.appendChild(item);
     }
 
     updateControls();
+  }
+
+  // 重点パネルの指定・解除
+  async function setFeaturedPanel(panelNumber) {
+    if (loading || saving || isEnded()) return;
+
+    if (!challenge) {
+      showMessage("先に設定を保存してください。", "error");
+      return;
+    }
+
+    if (
+      panelNumber !== null &&
+      (
+        !Number.isInteger(panelNumber) ||
+        panelNumber < 1 ||
+        panelNumber > getRows() * getColumns()
+      )
+    ) {
+      showMessage("重点パネルの番号が正しくありません。", "error");
+      return;
+    }
+
+    const confirmed = panelNumber === null
+      ? confirm("重点パネルの指定を解除しますか？")
+      : confirm(
+          "条件 " + panelNumber +
+          " を重点パネルに指定しますか？\n\n" +
+          "現在の重点指定がある場合は、新しい指定に切り替わります。"
+        );
+
+    if (!confirmed) return;
+
+    loading = true;
+    updateControls();
+    showMessage("重点パネルを保存しています...");
+
+    try {
+      const sessionOk = await checkSession();
+      if (!sessionOk) return;
+
+      const response = await fetch("/api/challenge", {
+        method: "PATCH",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "set-featured-panel",
+          panel_number: panelNumber
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || result.ok !== true) {
+        throw new Error(
+          result.error || "重点パネルを保存できませんでした。"
+        );
+      }
+
+      featuredPanelNumber =
+        result.featured_panel_number == null
+          ? null
+          : Number(result.featured_panel_number);
+
+      if (challenge) {
+        challenge.featured_panel_number = featuredPanelNumber;
+      }
+
+      renderPanels(false);
+
+      showMessage(
+        result.message || "重点パネルを更新しました。",
+        "success"
+      );
+    } catch (error) {
+      showMessage(
+        error.message || "重点パネルの保存に失敗しました。",
+        "error"
+      );
+      await loadChallenge();
+    } finally {
+      loading = false;
+      updateControls();
+    }
   }
 
   async function setPanelOpen(panelNumber, isOpen) {
@@ -817,6 +976,11 @@
       panels = Array.isArray(refreshResult.panels)
         ? refreshResult.panels
         : [];
+
+      featuredPanelNumber =
+        challenge && challenge.featured_panel_number != null
+          ? Number(challenge.featured_panel_number)
+          : null;
 
       renderPanels(false);
       updateViewerUrl();
@@ -875,6 +1039,11 @@
 
       challenge = result.challenge || null;
       panels = Array.isArray(result.panels) ? result.panels : [];
+
+      featuredPanelNumber =
+        challenge && challenge.featured_panel_number != null
+          ? Number(challenge.featured_panel_number)
+          : null;
 
       displayCharacterImage(challenge ? challenge.image_url : null);
 
@@ -940,8 +1109,7 @@
     }
   }
 
-  // ファイルの文字コードを判定して読み込む。
-  // UTF-8 BOM付き・BOMなしを優先し、UTF-8で読めない場合はShift_JISで読む。
+  // CSVファイルの文字コードを判定して読み込む
   async function readCSVFile(file) {
     const buffer = await file.arrayBuffer();
     const bytes = new Uint8Array(buffer);
@@ -971,7 +1139,7 @@
     }
   }
 
-  // CSVパーサー。引用符内のカンマ・改行にも対応。
+  // CSVパーサー。引用符内のカンマ・改行に対応
   function parseCSV(text) {
     text = text.replace(/^\uFEFF/, "");
 
@@ -1042,7 +1210,6 @@
         throw new Error("CSVにデータがありません。");
       }
 
-      // 先頭行をヘッダーとして確認する
       const headers = rows[0].map(function (value) {
         return value.trim().replace(/^\uFEFF/, "");
       });
@@ -1074,7 +1241,6 @@
       }
 
       const oldPanels = panels.slice();
-
       const importedPanels = [];
 
       dataRows.forEach(function (columns, index) {
@@ -1117,7 +1283,6 @@
         });
       });
 
-      // CSVに記載されていない条件は空欄にする
       for (
         let number = dataRows.length + 1;
         number <= count;
