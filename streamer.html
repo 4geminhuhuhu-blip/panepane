@@ -94,14 +94,19 @@
       background: #fafbfe;
     }
 
+    .panel-heading {
+      margin-bottom: 8px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
     .panel-item label {
-      margin: 0 0 8px;
+      margin: 12px 0 6px;
       font-size: 14px;
     }
 
-    textarea {
-      min-height: 76px;
-      resize: vertical;
+    .panel-item input {
+      min-width: 0;
     }
 
     .panel-state {
@@ -232,7 +237,7 @@
   <main>
     <section class="welcome">
       <h2>チャレンジ設定</h2>
-      <p>立ち絵チャレンジのタイトルや、マスごとの条件を設定できます。</p>
+      <p>立ち絵チャレンジのタイトルや、条件ごとの内容を設定できます。</p>
       <span id="challenge-status" class="status-badge">読み込み中</span>
     </section>
 
@@ -367,10 +372,10 @@
     </section>
 
     <section class="card">
-      <h2>マスごとの達成条件</h2>
+      <h2>条件の設定</h2>
       <p class="hint">
-        例：「コメントを10回もらう」「ギフトを1つもらう」など。
-        条件の達成確認は配信者自身で行います。
+        各条件の「項目」「目標」「あと（残りの数）」を入力してください。
+        すべて自由なテキストで入力できます。数値の計算や自動更新は行いません。
       </p>
 
       <p id="panel-count" class="hint">9マス</p>
@@ -575,37 +580,59 @@
 
     endButton.hidden = !challenge || !started || ended;
     endButton.disabled = loading || saving;
+
+    panelList.querySelectorAll("input").forEach(function (input) {
+      input.disabled = ended || loading || saving;
+    });
+
+    panelList.querySelectorAll("button").forEach(function (button) {
+      button.disabled =
+        !challenge ||
+        !started ||
+        ended ||
+        loading ||
+        saving;
+    });
   }
 
   function renderPanels() {
     const count = getRows() * getColumns();
     const previousValues = new Map();
 
-    panelList.querySelectorAll("textarea").forEach(function (input) {
-      previousValues.set(Number(input.dataset.number), input.value);
-    });
+    // 画面上に入力中の値があれば、再描画後も優先して残す
+    panelList.querySelectorAll("input[data-number]").forEach(function (input) {
+      const number = Number(input.dataset.number);
 
-    panels.forEach(function (panel) {
-      previousValues.set(
-        panel.panel_number,
-        panel.condition_text || ""
-      );
+      if (!previousValues.has(number)) {
+        previousValues.set(number, {});
+      }
+
+      const values = previousValues.get(number);
+      values[input.dataset.field] = input.value;
     });
 
     panelList.replaceChildren();
-    panelCount.textContent = count + "マス";
+    panelCount.textContent = count + "条件";
 
     for (let number = 1; number <= count; number++) {
       const item = document.createElement("div");
       item.className = "panel-item";
 
-      const label = document.createElement("label");
-      label.htmlFor = "panel-" + number;
-      label.textContent = "マス " + number;
-
       const panel = panels.find(function (p) {
         return Number(p.panel_number) === number;
       });
+
+      const savedValues = {
+        condition_text: panel ? panel.condition_text || "" : "",
+        target_value: panel ? panel.target_value || "" : "",
+        current_value: panel ? panel.current_value || "" : ""
+      };
+
+      const inputValues = previousValues.get(number) || {};
+
+      const heading = document.createElement("div");
+      heading.className = "panel-heading";
+      heading.textContent = "条件 " + number;
 
       const isOpen = Boolean(panel && panel.is_open);
 
@@ -613,13 +640,47 @@
       state.className = "panel-state";
       state.textContent = isOpen ? "開放済み" : "未開放";
 
-      const textarea = document.createElement("textarea");
-      textarea.id = "panel-" + number;
-      textarea.dataset.number = String(number);
-      textarea.maxLength = 500;
-      textarea.placeholder = "このマスを開放する条件を入力";
-      textarea.value = previousValues.get(number) || "";
-      textarea.disabled = isEnded() || loading || saving;
+      function createTextInput(field, labelText, placeholder, savedValue) {
+        const label = document.createElement("label");
+        const input = document.createElement("input");
+
+        input.type = "text";
+        input.id = "panel-" + number + "-" + field;
+        input.dataset.number = String(number);
+        input.dataset.field = field;
+        input.maxLength = 500;
+        input.placeholder = placeholder;
+        input.value =
+          inputValues[field] !== undefined
+            ? inputValues[field]
+            : savedValue;
+
+        label.htmlFor = input.id;
+        label.textContent = labelText;
+
+        return { label, input };
+      }
+
+      const conditionInput = createTextInput(
+        "condition_text",
+        "項目",
+        "例：チャンネル登録者数",
+        savedValues.condition_text
+      );
+
+      const targetInput = createTextInput(
+        "target_value",
+        "目標",
+        "例：10万人、1個、1000人",
+        savedValues.target_value
+      );
+
+      const currentInput = createTextInput(
+        "current_value",
+        "あと（残りの数）",
+        "例：800人、あと3個",
+        savedValues.current_value
+      );
 
       const panelButton = document.createElement("button");
       panelButton.type = "button";
@@ -639,11 +700,24 @@
         setPanelOpen(number, !isOpen);
       });
 
-      panelButton.style.marginTop = "10px";
+      panelButton.style.marginTop = "14px";
 
-      item.append(label, state, textarea, panelButton);
+      item.append(
+        heading,
+        state,
+        conditionInput.label,
+        conditionInput.input,
+        targetInput.label,
+        targetInput.input,
+        currentInput.label,
+        currentInput.input,
+        panelButton
+      );
+
       panelList.appendChild(item);
     }
+
+    updateControls();
   }
 
   async function setPanelOpen(panelNumber, isOpen) {
@@ -716,8 +790,8 @@
 
       showMessage(
         isOpen
-          ? "マス " + panelNumber + " を開きました！"
-          : "マス " + panelNumber + " を閉じました。",
+          ? "条件 " + panelNumber + " を開きました！"
+          : "条件 " + panelNumber + " を閉じました。",
         "success"
       );
     } catch (error) {
@@ -728,24 +802,6 @@
 
       await loadChallenge();
     }
-  }
-
-  function setBusy(isBusy) {
-    loading = isBusy;
-    saving = isBusy;
-    updateControls();
-
-    panelList.querySelectorAll("textarea").forEach(function (input) {
-      input.disabled = isBusy || isEnded();
-    });
-
-    panelList.querySelectorAll("button").forEach(function (button) {
-      button.disabled =
-        isBusy ||
-        isEnded() ||
-        !challenge ||
-        !challenge.is_started;
-    });
   }
 
   async function checkSession() {
@@ -865,13 +921,33 @@
     const conditions = [];
 
     for (let number = 1; number <= currentCount; number++) {
-      const input = panelList.querySelector(
-        'textarea[data-number="' + number + '"]'
+      const conditionInput = panelList.querySelector(
+        'input[data-number="' + number + '"][data-field="condition_text"]'
       );
 
-      if (!input || input.value.length > 500) {
+      const targetInput = panelList.querySelector(
+        'input[data-number="' + number + '"][data-field="target_value"]'
+      );
+
+      const currentInput = panelList.querySelector(
+        'input[data-number="' + number + '"][data-field="current_value"]'
+      );
+
+      if (!conditionInput || !targetInput || !currentInput) {
         showMessage(
-          "各マスの条件は500文字以内で入力してください。",
+          "条件 " + number + " の入力欄を確認してください。",
+          "error"
+        );
+        return;
+      }
+
+      if (
+        conditionInput.value.length > 500 ||
+        targetInput.value.length > 500 ||
+        currentInput.value.length > 500
+      ) {
+        showMessage(
+          "各項目は500文字以内で入力してください。",
           "error"
         );
         return;
@@ -879,7 +955,9 @@
 
       conditions.push({
         panel_number: number,
-        condition_text: input.value
+        condition_text: conditionInput.value,
+        target_value: targetInput.value,
+        current_value: currentInput.value
       });
     }
 
@@ -915,7 +993,12 @@
         throw new Error(result.error || "設定を保存できませんでした");
       }
 
+      // 保存後の再読み込みを可能にするため、先にsavingを解除
+      saving = false;
+      updateControls();
+
       await loadChallenge();
+
       showMessage("設定を保存しました！", "success");
     } catch (error) {
       showMessage(
