@@ -515,7 +515,87 @@ export async function onRequest({ request, env }) {
       );
     }
 
+    // ----------------------------------------
+    // パネルデータを事前検証・整形
+    // ----------------------------------------
+    const panelNumbers = new Set();
+    const panelDataList = [];
+    const now = new Date().toISOString();
+
+    for (const panel of body.panels) {
+      const panelNumber = Number(panel.panel_number);
+
+      if (
+        !Number.isInteger(panelNumber) ||
+        panelNumber < 1 ||
+        panelNumber > rows * columns
+      ) {
+        return json(
+          {
+            ok: false,
+            error: "パネル番号が正しくありません。",
+          },
+          400
+        );
+      }
+
+      if (panelNumbers.has(panelNumber)) {
+        return json(
+          {
+            ok: false,
+            error: `${panelNumber}番のパネルが重複しています。`,
+          },
+          400
+        );
+      }
+
+      panelNumbers.add(panelNumber);
+
+      const conditionText =
+        typeof panel.condition_text === "string"
+          ? panel.condition_text
+          : "";
+
+      const targetValue =
+        typeof panel.target_value === "string"
+          ? panel.target_value
+          : panel.target_value == null
+            ? ""
+            : String(panel.target_value);
+
+      const currentValue =
+        typeof panel.current_value === "string"
+          ? panel.current_value
+          : panel.current_value == null
+            ? ""
+            : String(panel.current_value);
+
+      if (
+        conditionText.length > 500 ||
+        targetValue.length > 500 ||
+        currentValue.length > 500
+      ) {
+        return json(
+          {
+            ok: false,
+            error: `${panelNumber}番の条件はそれぞれ500文字以内で入力してください。`,
+          },
+          400
+        );
+      }
+
+      panelDataList.push({
+        panel_number: panelNumber,
+        condition_text: conditionText,
+        target_value: targetValue,
+        current_value: currentValue,
+        updated_at: now,
+      });
+    }
+
+    // ----------------------------------------
     // 既存のチャレンジを取得
+    // ----------------------------------------
     const existingResponse = await fetch(challengeUrl, {
       headers,
     });
@@ -627,136 +707,50 @@ export async function onRequest({ request, env }) {
     }
 
     // ----------------------------------------
-    // パネルの3項目を文字列として保存
+    // パネルを一括保存（UPSERT）
     // ----------------------------------------
-    for (const panel of body.panels) {
-      const panelNumber = Number(panel.panel_number);
-
-      if (
-        !Number.isInteger(panelNumber) ||
-        panelNumber < 1 ||
-        panelNumber > rows * columns
-      ) {
-        continue;
-      }
-
-      const conditionText =
-        typeof panel.condition_text === "string"
-          ? panel.condition_text
-          : "";
-
-      const targetValue =
-        typeof panel.target_value === "string"
-          ? panel.target_value
-          : panel.target_value == null
-            ? ""
-            : String(panel.target_value);
-
-      const currentValue =
-        typeof panel.current_value === "string"
-          ? panel.current_value
-          : panel.current_value == null
-            ? ""
-            : String(panel.current_value);
-
-      if (
-        conditionText.length > 500 ||
-        targetValue.length > 500 ||
-        currentValue.length > 500
-      ) {
-        return json(
-          {
-            ok: false,
-            error: `${panelNumber}番の条件はそれぞれ500文字以内で入力してください。`,
-          },
-          400
-        );
-      }
-
-      const panelData = {
-        condition_text: conditionText,
-        target_value: targetValue,
-        current_value: currentValue,
-        updated_at: new Date().toISOString(),
-      };
-
-      const panelUrl = new URL(
+    if (panelDataList.length > 0) {
+      const panelsUrl = new URL(
         `${baseUrl}/rest/v1/challenge_panels`
       );
 
-      panelUrl.searchParams.set(
-        "challenge_id",
-        `eq.${challengeId}`
+      // challenge_id と panel_number の組み合わせで
+      // 既存パネルを判定する
+      panelsUrl.searchParams.set(
+        "on_conflict",
+        "challenge_id,panel_number"
       );
 
-      panelUrl.searchParams.set(
-        "panel_number",
-        `eq.${panelNumber}`
-      );
+      const panelsToSave = panelDataList.map((panel) => ({
+        challenge_id: challengeId,
+        ...panel,
+      }));
 
-      // パネルがすでに存在するか確認
-      const findUrl = new URL(panelUrl);
-      findUrl.searchParams.set("select", "id");
-
-      const findResponse = await fetch(findUrl, {
-        headers,
+      const saveResponse = await fetch(panelsUrl, {
+        method: "POST",
+        headers: {
+          ...headers,
+          Prefer: "resolution=merge-duplicates,return=minimal",
+        },
+        body: JSON.stringify(panelsToSave),
       });
 
-      if (!findResponse.ok) {
+      if (!saveResponse.ok) {
+        const errorText = await saveResponse.text();
+
+        console.error(
+          "Panel bulk save failed:",
+          saveResponse.status,
+          errorText
+        );
+
         return json(
           {
             ok: false,
-            error: "パネル設定を確認できませんでした。",
+            error: "パネル設定を一括保存できませんでした。",
           },
           502
         );
-      }
-
-      const found = await findResponse.json();
-
-      if (found.length > 0) {
-        // 既存パネルの3項目だけを更新
-        // is_open と opened_at は変更しない
-        const saveResponse = await fetch(panelUrl, {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify(panelData),
-        });
-
-        if (!saveResponse.ok) {
-          return json(
-            {
-              ok: false,
-              error: "パネル設定を保存できませんでした。",
-            },
-            502
-          );
-        }
-      } else {
-        // 新しいパネルを作成
-        const saveResponse = await fetch(
-          `${baseUrl}/rest/v1/challenge_panels`,
-          {
-            method: "POST",
-            headers,
-            body: JSON.stringify({
-              challenge_id: challengeId,
-              panel_number: panelNumber,
-              ...panelData,
-              is_open: false,
-            }),
-          }
-        );
-
-        if (!saveResponse.ok) {
-          return json(
-            {
-              ok: false,
-              error: "パネルを作成できませんでした。",
-            },
-            502
-          );
-        }
       }
     }
 
