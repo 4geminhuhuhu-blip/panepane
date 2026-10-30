@@ -391,8 +391,10 @@
       <div class="csv-area">
         <label for="conditions-csv">CSVから条件を取り込む</label>
         <p class="hint">
-          CSVの列は「カラム・項目・目標・あと」の順番です。<br>
-          カラムには条件番号（1、2、3…）を入力してください。<br>
+          CSVは「項目・目標・あと」の3列です。<br>
+          1行目は見出し（ヘッダー）にしてください。<br>
+          データの1行目が条件1、2行目が条件2……になります。<br>
+          UTF-8形式とExcelで作成したShift_JIS形式に対応しています。<br>
           CSVに記載されていない条件は空欄になります。
         </p>
         <input id="conditions-csv" type="file" accept=".csv,text/csv">
@@ -646,8 +648,6 @@
     });
   }
 
-  // preserveCurrentValues=true の場合だけ画面入力値を保持する。
-  // DBから読み込んだ直後は false にして、保存データを優先する。
   function renderPanels(preserveCurrentValues) {
     const count = getRows() * getColumns();
     const previousValues = new Map();
@@ -917,7 +917,6 @@
         statusBadge.classList.remove("ended");
       }
 
-      // DBの値を優先して表示する
       renderPanels(false);
 
       if (isEnded()) {
@@ -938,6 +937,37 @@
     } finally {
       loading = false;
       updateControls();
+    }
+  }
+
+  // ファイルの文字コードを判定して読み込む。
+  // UTF-8 BOM付き・BOMなしを優先し、UTF-8で読めない場合はShift_JISで読む。
+  async function readCSVFile(file) {
+    const buffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(buffer);
+
+    const hasUtf8Bom =
+      bytes.length >= 3 &&
+      bytes[0] === 0xEF &&
+      bytes[1] === 0xBB &&
+      bytes[2] === 0xBF;
+
+    if (hasUtf8Bom) {
+      return new TextDecoder("utf-8").decode(bytes);
+    }
+
+    try {
+      return new TextDecoder("utf-8", {
+        fatal: true
+      }).decode(bytes);
+    } catch (utf8Error) {
+      try {
+        return new TextDecoder("shift_jis").decode(bytes);
+      } catch (shiftJisError) {
+        throw new Error(
+          "CSVの文字コードを判定できませんでした。UTF-8またはShift_JISで保存してください。"
+        );
+      }
     }
   }
 
@@ -992,7 +1022,9 @@
 
     row.push(field);
 
-    if (row.some(function (value) { return value !== ""; })) {
+    if (row.some(function (value) {
+      return value.trim() !== "";
+    })) {
       rows.push(row);
     }
 
@@ -1003,58 +1035,62 @@
     if (loading || saving || isEnded()) return;
 
     try {
-      const text = await file.text();
+      const text = await readCSVFile(file);
       const rows = parseCSV(text);
 
       if (!rows.length) {
         throw new Error("CSVにデータがありません。");
       }
 
-      const firstCell = (rows[0][0] || "").trim().toLowerCase();
-      const hasHeader = [
-        "カラム",
-        "番号",
-        "条件番号",
-        "no",
-        "no."
-      ].includes(firstCell);
+      // 先頭行をヘッダーとして確認する
+      const headers = rows[0].map(function (value) {
+        return value.trim().replace(/^\uFEFF/, "");
+      });
 
-      const dataRows = hasHeader ? rows.slice(1) : rows;
+      if (
+        headers.length !== 3 ||
+        headers[0] !== "項目" ||
+        headers[1] !== "目標" ||
+        headers[2] !== "あと"
+      ) {
+        throw new Error(
+          "CSVの1行目は「項目,目標,あと」にしてください。"
+        );
+      }
+
+      const dataRows = rows.slice(1).filter(function (columns) {
+        return columns.some(function (value) {
+          return String(value || "").trim() !== "";
+        });
+      });
+
       const count = getRows() * getColumns();
-      const imported = new Map();
+
+      if (dataRows.length > count) {
+        throw new Error(
+          "CSVのデータが多すぎます。現在の条件数は" +
+          count + "件です。"
+        );
+      }
+
+      const oldPanels = panels.slice();
+
+      const importedPanels = [];
 
       dataRows.forEach(function (columns, index) {
-        if (columns.every(function (value) {
-          return String(value || "").trim() === "";
-        })) {
-          return;
-        }
+        const lineNumber = index + 2;
 
-        if (columns.length < 4) {
+        if (columns.length !== 3) {
           throw new Error(
-            (index + (hasHeader ? 2 : 1)) +
-            "行目：4列（カラム・項目・目標・あと）が必要です。"
+            lineNumber +
+            "行目：3列（項目・目標・あと）にしてください。"
           );
-        }
-
-        const numberText = String(columns[0] || "").trim();
-        const number = Number(numberText);
-
-        if (!/^\d+$/.test(numberText) || number < 1 || number > count) {
-          throw new Error(
-            (index + (hasHeader ? 2 : 1)) +
-            "行目：カラムには1〜" + count + "の番号を指定してください。"
-          );
-        }
-
-        if (imported.has(number)) {
-          throw new Error("カラム " + number + " が重複しています。");
         }
 
         const values = {
-          condition_text: String(columns[1] || "").trim(),
-          target_value: String(columns[2] || "").trim(),
-          current_value: String(columns[3] || "").trim()
+          condition_text: String(columns[0] || "").trim(),
+          target_value: String(columns[1] || "").trim(),
+          current_value: String(columns[2] || "").trim()
         };
 
         if (
@@ -1063,40 +1099,50 @@
           values.current_value.length > 500
         ) {
           throw new Error(
-            "カラム " + number + "：各項目は500文字以内にしてください。"
+            lineNumber +
+            "行目：各項目は500文字以内にしてください。"
           );
         }
 
-        imported.set(number, values);
-      });
-
-      // CSVに記載されていない条件は空欄にする
-      panels = [];
-
-      for (let number = 1; number <= count; number++) {
-        const values = imported.get(number) || {
-          condition_text: "",
-          target_value: "",
-          current_value: ""
-        };
-
-        const oldPanel = panels.find(function (panel) {
-          return Number(panel.panel_number) === number;
+        const oldPanel = oldPanels.find(function (panel) {
+          return Number(panel.panel_number) === index + 1;
         });
 
-        panels.push({
-          panel_number: number,
+        importedPanels.push({
+          panel_number: index + 1,
           condition_text: values.condition_text,
           target_value: values.target_value,
           current_value: values.current_value,
-          is_open: oldPanel ? oldPanel.is_open : false
+          is_open: oldPanel ? Boolean(oldPanel.is_open) : false
+        });
+      });
+
+      // CSVに記載されていない条件は空欄にする
+      for (
+        let number = dataRows.length + 1;
+        number <= count;
+        number++
+      ) {
+        const oldPanel = oldPanels.find(function (panel) {
+          return Number(panel.panel_number) === number;
+        });
+
+        importedPanels.push({
+          panel_number: number,
+          condition_text: "",
+          target_value: "",
+          current_value: "",
+          is_open: oldPanel ? Boolean(oldPanel.is_open) : false
         });
       }
+
+      panels = importedPanels;
 
       renderPanels(false);
 
       showCsvMessage(
-        imported.size + "件の条件を反映しました。内容を確認して「設定を保存」してください。",
+        dataRows.length +
+        "件の条件を反映しました。内容を確認して「設定を保存」してください。",
         "success"
       );
     } catch (error) {
@@ -1366,7 +1412,6 @@
   startButton.addEventListener("click", startChallenge);
   endButton.addEventListener("click", endChallenge);
 
-  // マス数を変更した場合は、現在の入力内容をできるだけ保持する
   rowsInput.addEventListener("change", function () {
     renderPanels(true);
   });
