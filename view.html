@@ -4,10 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f5f5f5">
+  <meta name="theme-color" content="#eeeae1">
   <title>パネパン｜チャレンジ</title>
 
-  <!-- 画像保存用ライブラリ -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <style>
@@ -15,12 +14,26 @@
       box-sizing: border-box;
     }
 
+    :root {
+      --ivory: #f3f0e8;
+      --paper: #fbfaf6;
+      --beige: #e8e1d5;
+      --greige: #b9b3a8;
+      --sage: #879b89;
+      --sage-dark: #607664;
+      --ink: #424841;
+      --muted: #85877f;
+      --orange: #ed963d;
+    }
+
     body {
       margin: 0;
       padding: 20px 12px 32px;
-      font-family: sans-serif;
-      background: #f5f5f5;
-      color: #333;
+      font-family: "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
+      background:
+        radial-gradient(circle at 10% 0%, #fffdf8 0, transparent 35%),
+        var(--ivory);
+      color: var(--ink);
     }
 
     .container {
@@ -34,40 +47,54 @@
       text-align: center;
       font-size: clamp(20px, 5vw, 28px);
       line-height: 1.4;
+      letter-spacing: .04em;
       overflow-wrap: anywhere;
+      color: #4d554d;
     }
 
     .status {
+      width: fit-content;
+      min-width: 110px;
+      margin: 12px auto;
+      padding: 7px 20px;
+      border: 1px solid #d9ded4;
+      border-radius: 999px;
+      background: rgba(255,255,255,.65);
+      color: var(--sage-dark);
       text-align: center;
-      margin: 12px 0;
       font-weight: bold;
-      font-size: 16px;
+      font-size: 14px;
     }
 
     .status.ended {
-      color: #d9534f;
+      color: #a35f51;
+      border-color: #e5c9bd;
+      background: #f8eee9;
     }
 
     .progress-text {
       text-align: center;
-      margin-bottom: 8px;
+      margin: 14px 0 9px;
       font-size: 14px;
       font-weight: bold;
+      color: #656b61;
     }
 
     .progress-track {
       height: 12px;
-      background: #ddd;
+      background: #e3e0d7;
       border-radius: 20px;
       overflow: hidden;
-      margin-bottom: 20px;
+      margin-bottom: 22px;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,.05);
     }
 
     .progress-bar {
       width: 0%;
       height: 100%;
-      background: #42b883;
-      transition: width .25s ease;
+      background: linear-gradient(90deg, #a9bba6, #718d78);
+      border-radius: inherit;
+      transition: width .35s ease;
     }
 
     .board {
@@ -75,13 +102,16 @@
       width: 100%;
       aspect-ratio: 1 / 1;
       overflow: hidden;
-      background: #fff;
-      border: 1px solid #ccc;
-      border-radius: 4px;
+      background: #f9f7f1;
+      border: 1px solid #d6d1c6;
+      border-radius: 16px;
+      box-shadow:
+        0 8px 24px rgba(75, 73, 61, .10),
+        0 2px 5px rgba(75, 73, 61, .06);
       isolation: isolate;
     }
 
-    /* 立ち絵：パネルより後ろ */
+    /* 立ち絵 */
     .character {
       position: absolute;
       inset: 0;
@@ -101,7 +131,7 @@
       transform-origin: center center;
     }
 
-    /* パネル：立ち絵より前 */
+    /* パネル全体 */
     .panels {
       position: absolute;
       inset: 0;
@@ -112,6 +142,7 @@
     }
 
     .panel {
+      position: relative;
       min-width: 0;
       min-height: 0;
       display: flex;
@@ -125,29 +156,136 @@
       overflow-wrap: anywhere;
       word-break: break-word;
       white-space: pre-wrap;
-      background: #fff;
-      color: #333;
-      border: 1px solid rgba(0, 0, 0, .12);
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid rgba(107, 111, 98, .22);
+      isolation: isolate;
+    }
+
+    /* 扉の左右パーツ */
+    .door-left,
+    .door-right {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 50%;
+      z-index: 1;
+      background:
+        linear-gradient(
+          90deg,
+          rgba(255,255,255,.38),
+          transparent 18%,
+          transparent 82%,
+          rgba(80,78,66,.08)
+        ),
+        linear-gradient(145deg, #f4f1e8, #e5e1d6);
+      border: 1px solid rgba(119, 117, 103, .24);
+      backface-visibility: hidden;
+      transform-style: preserve-3d;
+    }
+
+    .door-left {
+      left: 0;
+      transform-origin: left center;
+      border-right: 1px solid rgba(113, 112, 99, .32);
+    }
+
+    .door-right {
+      right: 0;
+      transform-origin: right center;
+      border-left: 1px solid rgba(113, 112, 99, .32);
+    }
+
+    /* 扉の控えめな装飾ライン */
+    .door-left::after,
+    .door-right::after {
+      content: "";
+      position: absolute;
+      inset: 8%;
+      border: 1px solid rgba(128, 132, 115, .18);
+      border-radius: 3px;
+      pointer-events: none;
+    }
+
+    .door-left::before,
+    .door-right::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 5px;
+      height: 5px;
+      margin-top: -2.5px;
+      border-radius: 50%;
+      background: #a6a18f;
+      box-shadow: 0 1px 2px rgba(0,0,0,.18);
+    }
+
+    .door-left::before {
+      right: 7px;
+    }
+
+    .door-right::before {
+      left: 7px;
+    }
+
+    /* パネル内の文字 */
+    .panel-item,
+    .panel-detail {
+      position: relative;
+      z-index: 2;
+      width: 100%;
     }
 
     .panel-item {
-      width: 100%;
       font-size: clamp(11px, 2.5vw, 17px);
       font-weight: bold;
       line-height: 1.3;
+      color: #485249;
     }
 
     .panel-detail {
-      width: 100%;
       font-size: clamp(9px, 2vw, 14px);
       line-height: 1.35;
+      color: #777a70;
     }
 
     .panel-detail span {
       font-weight: bold;
     }
 
-    /* 開いたパネルは透明にして立ち絵を見せる */
+    /* 扉が開くアニメーション */
+    .panel.opening {
+      perspective: 700px;
+      background: transparent;
+    }
+
+    .panel.opening .door-left {
+      animation: doorOpenLeft 1.25s cubic-bezier(.22,.7,.25,1) forwards;
+    }
+
+    .panel.opening .door-right {
+      animation: doorOpenRight 1.25s cubic-bezier(.22,.7,.25,1) forwards;
+    }
+
+    @keyframes doorOpenLeft {
+      0% {
+        transform: rotateY(0deg);
+      }
+      100% {
+        transform: rotateY(-105deg);
+      }
+    }
+
+    @keyframes doorOpenRight {
+      0% {
+        transform: rotateY(0deg);
+      }
+      100% {
+        transform: rotateY(105deg);
+      }
+    }
+
+    /* 開いたパネル */
     .panel.open {
       background: transparent;
       border: none;
@@ -157,27 +295,31 @@
       display: none;
     }
 
+    .panel.open .door-left,
+    .panel.open .door-right {
+      display: none;
+    }
+
     /* 重点パネル */
     .panel.featured {
-      position: relative;
-      z-index: 1;
-      border: 4px solid #ff9800;
+      z-index: 3;
+      border: 4px solid var(--orange);
       box-shadow:
-        inset 0 0 0 2px #fff3e0,
-        0 0 10px rgba(255, 152, 0, .65);
+        inset 0 0 0 2px rgba(255,255,255,.85),
+        0 0 10px rgba(237,150,61,.55);
     }
 
     .panel.open.featured {
-      border: 4px solid #ff9800;
+      border: 4px solid var(--orange);
       background: transparent;
       box-shadow:
-        inset 0 0 0 2px rgba(255, 243, 224, .8),
-        0 0 10px rgba(255, 152, 0, .65);
+        inset 0 0 0 2px rgba(255,255,255,.75),
+        0 0 10px rgba(237,150,61,.55);
     }
 
     /* 画像保存ボタン */
     .save-image-area {
-      margin: 20px 0 8px;
+      margin: 22px 0 8px;
       text-align: center;
     }
 
@@ -186,20 +328,22 @@
       width: 100%;
       max-width: 340px;
       padding: 15px 20px;
-      border: none;
+      border: 1px solid #718975;
       border-radius: 999px;
-      background: #d98b70;
+      background: linear-gradient(135deg, #8fa38f, #718975);
       color: #fff;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: bold;
+      letter-spacing: .03em;
       cursor: pointer;
-      box-shadow: 0 4px 10px rgba(150, 90, 65, .2);
-      transition: opacity .2s, transform .2s;
+      box-shadow: 0 4px 12px rgba(83, 108, 87, .20);
+      transition: opacity .2s, transform .2s, box-shadow .2s;
     }
 
     .save-image-button:hover {
-      opacity: .9;
+      opacity: .92;
       transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(83, 108, 87, .25);
     }
 
     .save-image-button:disabled {
@@ -209,8 +353,8 @@
     }
 
     .save-image-help {
-      margin: 8px 0 0;
-      color: #888;
+      margin: 9px 0 0;
+      color: #888980;
       font-size: 12px;
       line-height: 1.5;
     }
@@ -219,6 +363,7 @@
       text-align: center;
       padding: 24px 8px;
       line-height: 1.6;
+      color: #777a70;
     }
 
     .hidden {
@@ -228,15 +373,11 @@
     .update-note {
       margin-top: 12px;
       text-align: center;
-      color: #888;
+      color: #92938b;
       font-size: 11px;
     }
 
-    /* =================================
-       保存画像用デザイン
-       1080px × 1080px
-    ================================= */
-
+    /* 保存画像用レイアウト */
     .export-card {
       position: fixed;
       left: -12000px;
@@ -249,28 +390,28 @@
       flex-direction: column;
       align-items: center;
       background:
-        radial-gradient(circle at 10% 10%, #fff8ed 0, transparent 28%),
-        radial-gradient(circle at 90% 90%, #f9e9e5 0, transparent 30%),
-        #fffaf4;
-      color: #604b42;
-      font-family: sans-serif;
+        radial-gradient(circle at 8% 5%, #fffdf7 0, transparent 30%),
+        radial-gradient(circle at 95% 95%, #e8ede5 0, transparent 35%),
+        #f3f0e8;
+      color: #424841;
+      font-family: "Noto Sans JP", "Yu Gothic", "Meiryo", sans-serif;
     }
 
     .export-decoration {
       position: absolute;
-      color: #e8b9a5;
-      font-size: 52px;
-      opacity: .7;
+      color: #aeb9a9;
+      font-size: 48px;
+      opacity: .35;
       pointer-events: none;
     }
 
     .export-decoration.top-left {
-      top: 20px;
+      top: 22px;
       left: 28px;
     }
 
     .export-decoration.top-right {
-      top: 20px;
+      top: 22px;
       right: 28px;
     }
 
@@ -289,17 +430,18 @@
       z-index: 1;
       width: 100%;
       margin: 0 0 12px;
-      color: #77594e;
+      color: #4d5c50;
       text-align: center;
       font-size: 42px;
       line-height: 1.3;
       font-weight: bold;
+      letter-spacing: .04em;
       overflow-wrap: anywhere;
     }
 
     .export-progress-text {
       margin: 0 0 12px;
-      color: #a16e5c;
+      color: #718675;
       font-size: 25px;
       font-weight: bold;
       text-align: center;
@@ -311,14 +453,14 @@
       margin-bottom: 22px;
       overflow: hidden;
       border-radius: 999px;
-      background: #f0ddd4;
+      background: #dedfd5;
     }
 
     .export-progress-bar {
       width: 0;
       height: 100%;
       border-radius: 999px;
-      background: #91b69b;
+      background: linear-gradient(90deg, #a9bba6, #718d78);
     }
 
     .export-board {
@@ -327,9 +469,10 @@
       width: 850px;
       height: 850px;
       overflow: hidden;
-      background: #fff;
-      border: 5px solid #e8cabb;
+      background: #f9f7f1;
+      border: 5px solid #d5d3c8;
       border-radius: 20px;
+      box-shadow: 0 8px 24px rgba(75,73,61,.10);
       isolation: isolate;
     }
 
@@ -350,16 +493,16 @@
 
     .export-board .panel.featured,
     .export-board .panel.open.featured {
-      border: 5px solid #ff9800;
+      border: 5px solid var(--orange);
       box-shadow:
-        inset 0 0 0 2px #fff3e0,
-        0 0 12px rgba(255, 152, 0, .65);
+        inset 0 0 0 2px rgba(255,255,255,.85),
+        0 0 12px rgba(237,150,61,.55);
     }
 
     .export-footer {
       margin-top: auto;
       padding-top: 12px;
-      color: #b18472;
+      color: #718675;
       font-size: 23px;
       font-weight: bold;
       letter-spacing: 3px;
@@ -375,7 +518,7 @@
       }
 
       .status {
-        font-size: 14px;
+        font-size: 13px;
       }
 
       .progress-text {
@@ -411,7 +554,7 @@
       }
 
       .save-image-button {
-        font-size: 15px;
+        font-size: 14px;
       }
     }
 
@@ -427,6 +570,14 @@
 
       .panel-detail {
         font-size: 7px;
+      }
+    }
+
+    /* 動きを減らす設定の端末ではアニメーションを短縮 */
+    @media (prefers-reduced-motion: reduce) {
+      .panel.opening .door-left,
+      .panel.opening .door-right {
+        animation-duration: .01ms;
       }
     }
   </style>
@@ -466,10 +617,10 @@
         id="saveImageButton"
         class="save-image-button"
       >
-        📸 現在の状態を画像で保存
+        📷 現在の状態を画像で保存
       </button>
       <p class="save-image-help" id="saveImageHelp">
-        XなどのSNSで応援を呼びかけるときに使えます。
+        現在のチャレンジ状態を画像として保存できます。
       </p>
     </div>
 
@@ -478,12 +629,12 @@
     </div>
   </main>
 
-  <!-- 画像保存専用のレイアウト -->
+  <!-- 画像保存専用レイアウト -->
   <div id="exportCard" class="export-card" aria-hidden="true">
-    <div class="export-decoration top-left">✿</div>
-    <div class="export-decoration top-right">♡</div>
-    <div class="export-decoration bottom-left">♡</div>
-    <div class="export-decoration bottom-right">✿</div>
+    <div class="export-decoration top-left">＋</div>
+    <div class="export-decoration top-right">◇</div>
+    <div class="export-decoration bottom-left">◇</div>
+    <div class="export-decoration bottom-right">＋</div>
 
     <h2 id="exportTitle" class="export-title">
       立ち絵チャレンジ
@@ -500,7 +651,7 @@
     <div id="exportBoard" class="export-board"></div>
 
     <div class="export-footer">
-      ♡ パネパン ♡
+      PANE PANE
     </div>
   </div>
 
@@ -530,7 +681,6 @@
       document.getElementById("exportProgressBar");
     const exportBoard = document.getElementById("exportBoard");
 
-    // 自動更新間隔
     const UPDATE_INTERVAL = 2000;
 
     let updateTimer = null;
@@ -539,6 +689,10 @@
     let currentImageUrl = "";
     let latestChallenge = null;
     let latestPanels = [];
+
+    // パネルの開閉状態を記録し、新しく開いた場合だけ扉を動かす
+    let previousOpenStates = new Map();
+    let hasInitialPanelState = false;
 
     function showError(message) {
       board.classList.add("hidden");
@@ -572,7 +726,6 @@
             console.error("立ち絵を読み込めませんでした。");
           };
 
-          // 画像保存時に外部画像を扱えるようにする
           imageEl.crossOrigin = "anonymous";
           imageEl.src = imageUrl;
         } else {
@@ -588,19 +741,63 @@
         `translate(${x}px, ${y}px) scale(${scale})`;
     }
 
-    function createPanel(panel, featuredPanelNumber) {
+    function createPanel(panel, featuredPanelNumber, animateOpening) {
       const cell = document.createElement("div");
       cell.className = "panel";
 
-      if (
+      const isFeatured =
         featuredPanelNumber !== null &&
-        Number(panel.panel_number) === featuredPanelNumber
-      ) {
+        Number(panel.panel_number) === featuredPanelNumber;
+
+      if (isFeatured) {
         cell.classList.add("featured");
       }
 
-      if (panel.is_open === true) {
+      if (panel.is_open === true && !animateOpening) {
         cell.classList.add("open");
+        return cell;
+      }
+
+      // 左右の扉
+      const leftDoor = document.createElement("div");
+      leftDoor.className = "door-left";
+
+      const rightDoor = document.createElement("div");
+      rightDoor.className = "door-right";
+
+      cell.appendChild(leftDoor);
+      cell.appendChild(rightDoor);
+
+      if (animateOpening) {
+        cell.classList.add("opening");
+
+        // アニメーション終了後に扉を取り除き、完全に開いた状態にする
+        const finishOpening = () => {
+          cell.classList.remove("opening");
+          cell.classList.add("open");
+          leftDoor.remove();
+          rightDoor.remove();
+          cell.querySelectorAll(
+            ".panel-item, .panel-detail"
+          ).forEach(el => el.remove());
+        };
+
+        rightDoor.addEventListener(
+          "animationend",
+          finishOpening,
+          { once: true }
+        );
+
+        // アニメーションイベントが発火しない場合の保険
+        setTimeout(() => {
+          if (cell.classList.contains("opening")) {
+            finishOpening();
+          }
+        }, 1600);
+      }
+
+      if (panel.is_open === true) {
+        // アニメーション中は文字を表示しない
         return cell;
       }
 
@@ -652,20 +849,41 @@
         `repeat(${rows}, minmax(0, 1fr))`;
 
       const fragment = document.createDocumentFragment();
+      const nextOpenStates = new Map();
 
       let openedCount = 0;
 
       panels.forEach((panel) => {
-        if (panel.is_open === true) {
+        const panelNumber = Number(panel.panel_number);
+        const isOpen = panel.is_open === true;
+        const wasOpen = previousOpenStates.get(panelNumber);
+
+        if (isOpen) {
           openedCount++;
         }
 
+        // 初回読み込み時はアニメーションしない。
+        // 2回目以降、閉じた状態から開いた場合だけ再生。
+        const animateOpening =
+          hasInitialPanelState &&
+          isOpen &&
+          wasOpen === false;
+
+        nextOpenStates.set(panelNumber, isOpen);
+
         fragment.appendChild(
-          createPanel(panel, featuredPanelNumber)
+          createPanel(
+            panel,
+            featuredPanelNumber,
+            animateOpening
+          )
         );
       });
 
       panelsEl.replaceChildren(fragment);
+
+      previousOpenStates = nextOpenStates;
+      hasInitialPanelState = true;
 
       const total = rows * columns;
       const percent = Math.round((openedCount / total) * 100);
@@ -679,11 +897,6 @@
     function updateExportCard(challenge, panels) {
       const rows = Number(challenge.grid_rows);
       const columns = Number(challenge.grid_columns);
-
-      const featuredPanelNumber =
-        challenge.featured_panel_number == null
-          ? null
-          : Number(challenge.featured_panel_number);
 
       const openedCount = panels.filter(
         panel => panel.is_open === true
@@ -700,7 +913,6 @@
 
       exportProgressBar.style.width = `${percent}%`;
 
-      // 現在の盤面を複製して保存用レイアウトへ配置
       const boardClone = board.cloneNode(true);
 
       boardClone.id = "exportBoardClone";
@@ -710,6 +922,29 @@
       boardClone.style.width = "850px";
       boardClone.style.height = "850px";
       boardClone.style.aspectRatio = "1 / 1";
+
+      // 保存画像ではアニメーション途中の扉を残さず、
+      // API上の最新状態に合わせた完成状態を表示する。
+      const clonedPanels =
+        boardClone.querySelectorAll(".panel");
+
+      clonedPanels.forEach((cell, index) => {
+        const panel = panels[index];
+
+        if (!panel) return;
+
+        cell.classList.remove("opening");
+
+        cell.querySelectorAll(
+          ".door-left, .door-right"
+        ).forEach(door => door.remove());
+
+        if (panel.is_open === true) {
+          cell.classList.add("open");
+        } else {
+          cell.classList.remove("open");
+        }
+      });
 
       exportBoard.replaceChildren(boardClone);
     }
@@ -737,7 +972,6 @@
       try {
         updateExportCard(latestChallenge, latestPanels);
 
-        // 立ち絵が読み込まれるのを待つ
         const exportImage =
           exportBoard.querySelector(".character img");
 
@@ -751,11 +985,10 @@
           });
         }
 
-        // 描画タイミングを確保
         await new Promise(resolve => requestAnimationFrame(resolve));
 
         const canvas = await html2canvas(exportCard, {
-          backgroundColor: "#fffaf4",
+          backgroundColor: "#f3f0e8",
           scale: 1,
           width: 1080,
           height: 1080,
@@ -788,7 +1021,7 @@
         }, 1000);
 
         saveImageHelp.textContent =
-          "画像を保存しました！SNSで応援を呼びかけてみてください♡";
+          "画像を保存しました。ぜひSNSでも共有してください！";
 
       } catch (error) {
         console.error("画像保存エラー:", error);
@@ -802,7 +1035,7 @@
       } finally {
         saveImageButton.disabled = false;
         saveImageButton.textContent =
-          "📸 現在の状態を画像で保存";
+          "📷 現在の状態を画像で保存";
       }
     }
 
@@ -931,7 +1164,6 @@
       saveCurrentImage
     );
 
-    // ページを閉じる・移動する際にタイマーを停止
     window.addEventListener("pagehide", stopAutoUpdate);
 
     if (!streamerId) {
