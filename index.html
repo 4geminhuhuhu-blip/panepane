@@ -6,25 +6,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>パネパン｜IRIAMパネル開けシステム</title>
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       font-family: sans-serif;
       background: #f5f3ff;
       color: #292442;
     }
+
     header {
       background: #6c55c9;
       color: white;
       padding: 22px 16px;
       text-align: center;
     }
-    header h1 { margin: 0; font-size: 26px; }
-    header p { margin: 8px 0 0; font-size: 14px; }
+
+    header h1 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    header p {
+      margin: 8px 0 0;
+      font-size: 14px;
+    }
+
     main {
       width: min(92%, 680px);
       margin: 28px auto;
     }
+
     .card {
       background: white;
       padding: 24px;
@@ -32,7 +46,12 @@
       border-radius: 16px;
       box-shadow: 0 4px 16px #29244212;
     }
-    h2 { margin-top: 0; font-size: 20px; }
+
+    h2 {
+      margin-top: 0;
+      font-size: 20px;
+    }
+
     .button {
       display: block;
       width: 100%;
@@ -47,16 +66,33 @@
       text-decoration: none;
       cursor: pointer;
     }
-    .button.secondary {
-      margin-top: 10px;
-      background: #eee9ff;
-      color: #51409a;
+
+    .button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
     }
+
     .note {
       color: #716b83;
       font-size: 13px;
       line-height: 1.8;
     }
+
+    label {
+      display: block;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0 16px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+
     footer {
       padding: 20px;
       text-align: center;
@@ -65,6 +101,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <h1>🎁 パネパン</h1>
@@ -73,34 +110,58 @@
 
   <main>
     <section class="card">
-      <h2>配信をもっと楽しく！</h2>
+      <h2>パネパン</h2>
       <p>
-        パネルを開けて、リスナーのみんなと
-        ワクワクする時間を作ろう！
+        配信をもっと楽しく！
       </p>
-      <p class="note">
-        配信者専用の管理画面と、リスナー向けの閲覧ページを
-        これから順番に作っていきます。
+      <p>
+        パネル開けについて、画像をアップするだけでできるシステムがあったらいいなと思い、素人が作っています。
+      </p>
+      <p>
+        温かい気持ちで、エラーなどに怒らず使っていただけるとうれしいです。
       </p>
     </section>
 
-    <section class="card">
-      <h2>配信者メニュー</h2>
-      <p>配信者の方はこちらから利用します。</p>
-      <button class="button" onclick="alert('次のステップでログイン機能を作ります！')">
-        配信者ログイン
-      </button>
-      <button class="button secondary" onclick="alert('次のステップでパネル作成機能を作ります！')">
-        パネルを作成する
-      </button>
+    <section class="card" id="login">
+      <h2>ライバーログイン</h2>
+
+      <form id="streamer-login-form">
+        <label for="login-id">ID</label>
+        <input
+          id="login-id"
+          type="text"
+          placeholder="ログインIDを入力"
+          autocomplete="username"
+          required
+        >
+
+        <label for="login-password">PW</label>
+        <input
+          id="login-password"
+          type="password"
+          placeholder="パスワードを入力"
+          autocomplete="current-password"
+          minlength="8"
+          required
+        >
+
+        <button class="button" type="submit">
+          ログイン
+        </button>
+
+        <p
+          id="login-message"
+          class="note"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </form>
     </section>
 
     <section class="card">
       <h2>リスナーの方へ</h2>
-      <p>配信者から共有された閲覧用URLから参加できます。</p>
-      <p class="note">
-        このトップページは試作版です。
-        まだログインやパネル閲覧の機能は動作しません。
+      <p>
+        配信者から共有された閲覧用URLから参加できます。
       </p>
     </section>
   </main>
@@ -108,89 +169,57 @@
   <footer>
     © パネパン｜IRIAM パネル開けシステム
   </footer>
-<section class="card" id="login">
-  <h2>ライバー専用ログイン</h2>
-  <p>発行されたIDとパスワードでログインしてください。</p>
 
-　 <form id="streamer-login-form">
-    <label for="login-id">ログインID</label>
-    <input
-      id="login-id"
-      type="text"
-      placeholder="例：panepan_001"
-      autocomplete="username"
-      required
-      style="width:100%;padding:12px;margin:8px 0 16px;border:1px solid #ddd;border-radius:8px;"
-    >
+  <script>
+    const loginForm = document.getElementById("streamer-login-form");
 
-    <label for="login-password">パスワード</label>
-    <input
-      id="login-password"
-      type="password"
-      placeholder="8文字以上"
-      autocomplete="current-password"
-      minlength="8"
-      required
-      style="width:100%;padding:12px;margin:8px 0 16px;border:1px solid #ddd;border-radius:8px;"
-    >
+    if (loginForm) {
+      loginForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
 
-    <button class="button" type="submit">ログイン</button>
-   <p id="login-message" class="note" role="status" aria-live="polite"></p>
-  </form>
+        const message = document.getElementById("login-message");
+        const loginId = document.getElementById("login-id").value.trim();
+        const password = document.getElementById("login-password").value;
+        const submitButton = loginForm.querySelector('button[type="submit"]');
 
-  <p class="note">
-    ※現在は画面の試作段階です。まだ本当のログインはできません。
-  </p>
-</section>
-<script>
+        message.textContent = "ログインを確認しています…";
+        submitButton.disabled = true;
 
-const loginForm = document.getElementById("streamer-login-form");
+        try {
+          const response = await fetch("/api/streamer-login", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+              login_id: loginId,
+              password: password
+            })
+          });
 
-if (loginForm) {
-  loginForm.addEventListener("submit", async (event) => {
-    event.preventDefault();
+          const result = await response.json();
 
-    const message = document.getElementById("login-message");
-    const loginId = document.getElementById("login-id").value.trim();
-    const password = document.getElementById("login-password").value;
-    const submitButton = loginForm.querySelector('button[type="submit"]');
+          if (!response.ok || !result.ok) {
+            message.textContent =
+              result.error === "Invalid login ID or password"
+                ? "ログインIDまたはパスワードを確認してください。"
+                : "ログインできませんでした。時間をおいて再度お試しください。";
+            return;
+          }
 
-    message.textContent = "ログインを確認しています…";
-    submitButton.disabled = true;
+          message.textContent = "ログインしました。次の画面を準備しています。";
+          window.location.href = "/streamer.html";
 
-    try {
-      const response = await fetch("/api/streamer-login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          login_id: loginId,
-          password: password
-        })
+        } catch {
+          message.textContent =
+            "通信に失敗しました。インターネット接続を確認してください。";
+
+        } finally {
+          submitButton.disabled = false;
+        }
       });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.ok) {
-        message.textContent =
-          result.error === "Invalid login ID or password"
-            ? "ログインIDまたはパスワードを確認してください。"
-            : "ログインできませんでした。時間をおいて再度お試しください。";
-        return;
-      }
-
-      message.textContent = "ログインしました。次の画面を準備しています。";
-      window.location.href = "/streamer.html";
-    } catch {
-      message.textContent =
-        "通信に失敗しました。インターネット接続を確認してください。";
-    } finally {
-      submitButton.disabled = false;
     }
-  });
-}  
-</script>
+  </script>
 </body>
 </html>
