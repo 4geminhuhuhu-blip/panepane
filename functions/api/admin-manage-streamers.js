@@ -32,7 +32,6 @@ async function requireAdmin(request, env) {
 
   const base = env.SUPABASE_URL.replace(/\/+$/, "");
 
-  // Supabase Authでログイン中のユーザーを確認
   const userRes = await fetch(`${base}/auth/v1/user`, {
     headers: {
       apikey: env.SUPABASE_PUBLISHABLE_KEY,
@@ -58,13 +57,11 @@ async function requireAdmin(request, env) {
     };
   }
 
-  // admin_users に本人の user_id が登録されているか確認
   const adminUrl = new URL(`${base}/rest/v1/admin_users`);
   adminUrl.searchParams.set("select", "user_id");
   adminUrl.searchParams.set("user_id", `eq.${user.id}`);
   adminUrl.searchParams.set("limit", "1");
 
-  // ここはユーザー本人のJWTで照会する
   const adminRes = await fetch(adminUrl.toString(), {
     headers: {
       apikey: env.SUPABASE_PUBLISHABLE_KEY,
@@ -112,14 +109,46 @@ async function rest(env, path, options = {}) {
     {
       ...options,
       headers: headers(env, {
-        ...(options.body
-          ? { "Content-Type": "application/json" }
-          : {}),
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
         ...(options.headers || {}),
       }),
       cache: "no-store",
     }
   );
+}
+
+// DELETEした件数を確認する
+async function deleteAndCount(env, path, label) {
+  const response = await rest(env, path, {
+    method: "DELETE",
+    headers: {
+      Prefer: "return=representation",
+    },
+  });
+
+  const responseText = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `${label} delete failed: ${response.status} ${responseText}`
+    );
+  }
+
+  let deletedRows = [];
+
+  if (responseText.trim()) {
+    try {
+      deletedRows = JSON.parse(responseText);
+    } catch {
+      throw new Error(`${label} delete response could not be parsed.`);
+    }
+  }
+
+  if (!Array.isArray(deletedRows)) {
+    throw new Error(`${label} delete response was not an array.`);
+  }
+
+  return deletedRows.length;
 }
 
 // Storage内の配信者画像を取得
@@ -213,14 +242,8 @@ export async function onRequest({ request, env }) {
     // 配信者一覧取得
     if (request.method === "GET") {
       const [accountsRes, challengesRes] = await Promise.all([
-        rest(
-          env,
-          "streamer_accounts?select=id,login_id,is_active"
-        ),
-        rest(
-          env,
-          "challenges?select=id,streamer_id,title,is_started,is_ended"
-        ),
+        rest(env, "streamer_accounts?select=id,login_id,is_active"),
+        rest(env, "challenges?select=id,streamer_id,title,is_started,is_ended"),
       ]);
 
       if (!accountsRes.ok) {
@@ -298,11 +321,7 @@ export async function onRequest({ request, env }) {
         ? body.confirm_login_id.trim()
         : "";
 
-    if (
-      !streamerId ||
-      streamerId.length > 100 ||
-      !confirmLoginId
-    ) {
+    if (!streamerId || streamerId.length > 100 || !confirmLoginId) {
       return json({
         ok: false,
         error: "削除対象の指定が正しくありません。",
@@ -369,63 +388,80 @@ export async function onRequest({ request, env }) {
       await removeStorageObjects(env, storagePaths);
     }
 
-    // パネル情報をチャレンジごとに削除
+    // パネル情報を削除
+    let deletedPanels = 0;
+
     for (const challenge of challenges) {
-      const panelDelete = await rest(
+      deletedPanels += await deleteAndCount(
         env,
         `challenge_panels?challenge_id=eq.${encodeURIComponent(challenge.id)}`,
-        { method: "DELETE" }
+        "Panel"
       );
-
-      if (!panelDelete.ok) {
-        throw new Error(
-          `Panel delete failed: ${panelDelete.status} ${await panelDelete.text()}`
-        );
-      }
     }
 
     // チャレンジ本体を削除
-    const challengeDelete = await rest(
+    const deletedChallenges = await deleteAndCount(
       env,
       `challenges?streamer_id=eq.${encodeURIComponent(streamerId)}`,
-      { method: "DELETE" }
+      "Challenge"
     );
-
-    if (!challengeDelete.ok) {
-      throw new Error(
-        `Challenge delete failed: ${challengeDelete.status} ${await challengeDelete.text()}`
-      );
-    }
 
     // ログインセッションを削除
-    const sessionsDelete = await rest(
+    const deletedSessions = await deleteAndCount(
       env,
       `streamer_sessions?streamer_id=eq.${encodeURIComponent(streamerId)}`,
-      { method: "DELETE" }
+      "Session"
     );
 
-    if (!sessionsDelete.ok) {
+    // 配信者アカウント本体を削除し、削除件数を確認
+    const deletedAccounts = await deleteAndCount(
+      env,
+      `streamer_accounts?id=eq.${encodeURIComponent(streamerId)}&login_id=eq.${encodeURIComponent(confirmLoginId)}`,
+      "Streamer account"
+    );
+
+    if (deletedAccounts !== 1) {
+      console.error("Streamer account was not deleted:", {
+        streamerId,
+        loginId: confirmLoginId,
+        deletedAccounts,
+      });
+
+      return json({
+        ok: false,
+        error: `関連データの削除処理は進みましたが、配信者アカウント本体を削除できませんでした。削除件数：${deletedAccounts}件`,
+        diagnostic: "STREAMER_ACCOUNT_DELETE_COUNT_MISMATCH",
+      }, 500);
+    }
+
+    // 削除後にアカウントが残っていないか再確認
+    const verifyRes = await rest(
+      env,
+      `streamer_accounts?select=id&id=eq.${encodeURIComponent(streamerId)}&limit=1`
+    );
+
+    if (!verifyRes.ok) {
       throw new Error(
-        `Session delete failed: ${sessionsDelete.status} ${await sessionsDelete.text()}`
+        `Account verification failed: ${verifyRes.status} ${await verifyRes.text()}`
       );
     }
 
-    // 配信者アカウントを削除
-    const accountDelete = await rest(
-      env,
-      `streamer_accounts?id=eq.${encodeURIComponent(streamerId)}`,
-      { method: "DELETE" }
-    );
+    const remainingAccounts = await verifyRes.json();
 
-    if (!accountDelete.ok) {
-      throw new Error(
-        `Account delete failed: ${accountDelete.status} ${await accountDelete.text()}`
-      );
+    if (remainingAccounts.length > 0) {
+      throw new Error("Streamer account still exists after delete.");
     }
 
     return json({
       ok: true,
       message: `${account.login_id} と関連データを削除しました。`,
+      deleted: {
+        accounts: deletedAccounts,
+        challenges: deletedChallenges,
+        panels: deletedPanels,
+        sessions: deletedSessions,
+        images: storagePaths.length,
+      },
     });
 
   } catch (error) {
