@@ -168,6 +168,15 @@
       </form>
     </section>
 
+
+    <section class="card" id="streamer-management-card" hidden>
+      <h2>配信者アカウント管理</h2>
+      <p class="note">不要になった配信者を選び、アカウントと関連データをまとめて削除できます。削除したデータは元に戻せません。</p>
+      <button class="button" type="button" id="refresh-streamers">一覧を更新</button>
+      <p id="streamer-list-message" class="note message" role="status" aria-live="polite"></p>
+      <div id="streamer-list"></div>
+    </section>
+
     <p class="note">
       <a href="/">トップページに戻る</a>
     </p>
@@ -182,6 +191,89 @@
     const createForm = document.getElementById("create-form");
     const loginMessage = document.getElementById("login-message");
     const createMessage = document.getElementById("create-message");
+    const streamerManagementCard = document.getElementById("streamer-management-card");
+    const streamerList = document.getElementById("streamer-list");
+    const streamerListMessage = document.getElementById("streamer-list-message");
+
+
+    async function loadStreamers() {
+      streamerListMessage.textContent = "配信者一覧を読み込んでいます…";
+      streamerList.replaceChildren();
+      try {
+        const response = await fetch("/api/admin-manage-streamers", {
+          method: "GET", credentials: "same-origin", cache: "no-store"
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+          streamerListMessage.textContent = result.error || "一覧を取得できませんでした。";
+          return;
+        }
+        const streamers = result.streamers || [];
+        streamerListMessage.textContent = `登録アカウント：${streamers.length}件`;
+        if (!streamers.length) {
+          streamerList.textContent = "登録されている配信者はいません。";
+          return;
+        }
+        for (const streamer of streamers) {
+          const item = document.createElement("div");
+          item.style.cssText = "border:1px solid #e4e0ed;border-radius:12px;padding:14px;margin-top:12px;";
+          const title = document.createElement("strong");
+          title.textContent = streamer.login_id;
+          const detail = document.createElement("p");
+          detail.className = "note";
+          detail.textContent = `${streamer.challenge_title || "チャレンジ未作成"} ／ ${streamer.challenge_status || "状態不明"}`;
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "button";
+          button.style.background = "#b93838";
+          button.textContent = "この配信者を一括削除";
+          button.addEventListener("click", () => deleteStreamer(streamer));
+          item.append(title, detail, button);
+          streamerList.append(item);
+        }
+      } catch {
+        streamerListMessage.textContent = "通信に失敗しました。一覧を更新してください。";
+      }
+    }
+
+    async function deleteStreamer(streamer) {
+      const first = confirm(
+        `【削除確認】\\n配信者「${streamer.login_id}」を削除します。\\n\\nログインアカウント、チャレンジ、パネル設定、立ち絵画像、ログインセッションをすべて削除します。\\n\\nこの操作は元に戻せません。続行しますか？`
+      );
+      if (!first) return;
+      const typed = prompt(`誤操作防止のため、削除する配信者のログインID「${streamer.login_id}」を入力してください。`);
+      if (typed === null) return;
+      if (typed.trim() !== streamer.login_id) {
+        alert("ログインIDが一致しないため、削除を中止しました。");
+        return;
+      }
+      if (!confirm(`最終確認：${streamer.login_id} の関連データをすべて削除します。よろしいですか？`)) return;
+
+      streamerListMessage.textContent = `${streamer.login_id} を削除しています…`;
+      try {
+        const response = await fetch("/api/admin-manage-streamers", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          cache: "no-store",
+          body: JSON.stringify({
+            streamer_id: streamer.id,
+            confirm_login_id: typed.trim()
+          })
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) {
+          streamerListMessage.textContent = result.error || "削除できませんでした。";
+          return;
+        }
+        streamerListMessage.textContent = result.message || "削除しました。";
+        await loadStreamers();
+      } catch {
+        streamerListMessage.textContent = "通信に失敗しました。削除結果を一覧で確認してください。";
+      }
+    }
+
+    document.getElementById("refresh-streamers").addEventListener("click", loadStreamers);
 
     async function checkAdminSession() {
       try {
@@ -196,9 +288,12 @@
         if (response.ok && result.ok && result.authenticated === true) {
           loginCard.hidden = true;
           adminCard.hidden = false;
+          streamerManagementCard.hidden = false;
+          loadStreamers();
         } else {
           loginCard.hidden = false;
           adminCard.hidden = true;
+          streamerManagementCard.hidden = true;
         }
       } catch {
         loginMessage.textContent =
@@ -281,6 +376,7 @@
         if (!response.ok || !result.ok) {
           if (response.status === 401 || response.status === 403) {
             adminCard.hidden = true;
+          streamerManagementCard.hidden = true;
             loginCard.hidden = false;
             loginMessage.textContent =
               "管理者の認証を確認できません。もう一度ログインしてください。";
