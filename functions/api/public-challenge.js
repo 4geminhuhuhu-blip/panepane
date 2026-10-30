@@ -22,7 +22,10 @@ export async function onRequest({ request, env }) {
   const streamerId = url.searchParams.get("id");
 
   if (!streamerId || streamerId.length > 100) {
-    return json({ ok: false, error: "配信者IDが指定されていません。" }, 400);
+    return json(
+      { ok: false, error: "配信者IDが指定されていません。" },
+      400
+    );
   }
 
   const baseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
@@ -31,19 +34,37 @@ export async function onRequest({ request, env }) {
   };
 
   try {
-    // 配信者IDに対応するチャレンジを取得
+    // チャレンジ情報を取得
     const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
+
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended"
+      [
+        "id",
+        "streamer_id",
+        "title",
+        "grid_rows",
+        "grid_columns",
+        "image_url",
+        "image_position_x",
+        "image_position_y",
+        "image_scale",
+        "is_started",
+        "is_ended",
+      ].join(",")
     );
+
     challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
     challengeUrl.searchParams.set("limit", "1");
 
-    const challengeResponse = await fetch(challengeUrl, { headers });
+    const challengeResponse = await fetch(challengeUrl, {
+      headers,
+      cache: "no-store",
+    });
 
     if (!challengeResponse.ok) {
       const errorText = await challengeResponse.text();
+
       console.error(
         "Public challenge query failed:",
         challengeResponse.status,
@@ -57,25 +78,42 @@ export async function onRequest({ request, env }) {
     }
 
     const challengeList = await challengeResponse.json();
-    const record = Array.isArray(challengeList) ? challengeList[0] : null;
+    const record = Array.isArray(challengeList)
+      ? challengeList[0]
+      : null;
 
     if (!record) {
-      return json({ ok: false, error: "チャレンジが見つかりません。" }, 404);
+      return json(
+        { ok: false, error: "チャレンジが見つかりません。" },
+        404
+      );
     }
 
-    // パネルを取得
+    // パネル情報を取得
     const panelsUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+
     panelsUrl.searchParams.set(
       "select",
-      "panel_number,condition_text,is_open"
+      "panel_number,condition_text,target_value,current_value,is_open"
     );
+
     panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
     panelsUrl.searchParams.set("order", "panel_number.asc");
 
-    const panelsResponse = await fetch(panelsUrl, { headers });
+    const panelsResponse = await fetch(panelsUrl, {
+      headers,
+      cache: "no-store",
+    });
 
     if (!panelsResponse.ok) {
-      console.error("Public panels query failed:", panelsResponse.status);
+      const errorText = await panelsResponse.text();
+
+      console.error(
+        "Public panels query failed:",
+        panelsResponse.status,
+        errorText
+      );
+
       return json(
         { ok: false, error: "パネル情報を取得できませんでした。" },
         502
@@ -84,7 +122,7 @@ export async function onRequest({ request, env }) {
 
     const panelRecords = await panelsResponse.json();
 
-    // 公開してよい項目だけを返し、番号順に統一
+    // 公開用データに整形
     const panels = panelRecords
       .map((panel) => ({
         panel_number: Number(panel.panel_number),
@@ -92,6 +130,18 @@ export async function onRequest({ request, env }) {
           typeof panel.condition_text === "string"
             ? panel.condition_text
             : "",
+        target_value:
+          typeof panel.target_value === "string"
+            ? panel.target_value
+            : panel.target_value == null
+              ? ""
+              : String(panel.target_value),
+        current_value:
+          typeof panel.current_value === "string"
+            ? panel.current_value
+            : panel.current_value == null
+              ? ""
+              : String(panel.current_value),
         is_open: panel.is_open === true,
       }))
       .sort((a, b) => a.panel_number - b.panel_number);
@@ -104,13 +154,24 @@ export async function onRequest({ request, env }) {
       image_position_x: record.image_position_x,
       image_position_y: record.image_position_y,
       image_scale: record.image_scale,
-      is_started: record.is_started,
+      is_started: record.is_started === true,
       is_ended: record.is_ended === true,
     };
 
-    return json({ ok: true, challenge, panels });
+    return json({
+      ok: true,
+      challenge,
+      panels,
+    });
   } catch (error) {
     console.error("Public challenge error:", error);
-    return json({ ok: false, error: "読み込み中にエラーが発生しました。" }, 500);
+
+    return json(
+      {
+        ok: false,
+        error: "読み込み中にエラーが発生しました。",
+      },
+      500
+    );
   }
 }
