@@ -1076,15 +1076,21 @@
       const exportCharacterImage =
         boardClone.querySelector(".character img");
 
-      if (exportCharacterImage) {
-        const x = Number(challenge.image_position_x) || 0;
-        const y = Number(challenge.image_position_y) || 0;
-        const scale = (Number(challenge.image_scale) || 100) / 100;
+    if (exportCharacterImage) {
+      const x = Number(challenge.image_position_x) || 0;
+      const y = Number(challenge.image_position_y) || 0;
+      const scale = (Number(challenge.image_scale) || 100) / 100;
 
-        exportCharacterImage.style.transform =
-          `translate(${x * ratio}px, ${y * ratio}px) scale(${scale})`;
-      }
+      // 立ち絵の縦横比を維持する
+      exportCharacterImage.style.width = "auto";
+      exportCharacterImage.style.height = "auto";
+      exportCharacterImage.style.maxWidth = "100%";
+      exportCharacterImage.style.maxHeight = "100%";
+      exportCharacterImage.style.objectFit = "contain";
 
+      exportCharacterImage.style.transform =
+        `translate(${x * ratio}px, ${y * ratio}px) scale(${scale})`;
+    }
       // APIの開閉状態を基準に保存用パネルを確定する
       const clonedPanels = boardClone.querySelectorAll(".panel");
 
