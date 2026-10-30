@@ -448,13 +448,19 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      background:
-        radial-gradient(circle at 8% 5%, #fffdf7 0, transparent 30%),
-        radial-gradient(circle at 95% 95%, #e8ede5 0, transparent 35%),
-        #f3f0e8;
+
+      /* html2canvas対策：グラデーションを使わず単色にする */
+      background-color: #f3f0e8;
+      background-image: none !important;
+
       color: #424841;
       font-family: "Yu Gothic", "Meiryo", sans-serif;
     }
+
+/* 保存画像内のすべてのグラデーションを無効化 */
+.export-card * {
+  background-image: none !important;
+}
 
     .export-decoration {
       position: absolute;
@@ -536,6 +542,18 @@
       isolation: isolate;
     }
 
+    .export-card .export-progress-bar {
+      background-color: #879b89 !important;
+      background-image: none !important;
+    }
+
+    /* 保存画像内の扉も単色にする */
+    .export-card .door-left,
+    .export-card .door-right {
+      background-color: #eeeae1 !important;
+      background-image: none !important;
+    }
+    
     /* 保存画像でも閲覧ページと同じパネル表示 */
     .export-board .panel {
       padding: 8px;
