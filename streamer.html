@@ -6,6 +6,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>パネパン｜配信者マイページ</title>
   <style>
+    /* 項目名の文字数カウンター */
+   .condition-counter {
+     margin-top: 5px;
+     color: #64748b;
+     font-size: 12px;
+     text-align: right;
+   }
+
+.condition-counter.over-limit {
+  color: #b91c1c;
+  font-weight: bold;
+}
   @font-face {
     font-family: "Hanazome";
     src: url("/fonts/hanazome-font.ttf") format("truetype");
@@ -18,7 +30,7 @@
 
     body {
       margin: 0;
-      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
+     font-family: "Yu Gothic", "Meiryo", sans-serif;
       background: #f4f6fa;
       color: #263247;
     }
@@ -30,6 +42,7 @@
     }
 
     header h1 {
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
       max-width: 900px;
       margin: 0 auto;
       font-size: 22px;
@@ -60,6 +73,26 @@
       color: #64748b;
       font-size: 14px;
       line-height: 1.7;
+    }
+
+    .export-card {
+     font-family: "Yu Gothic", "Meiryo", sans-serif;
+    } 
+
+     .export-title {
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
+    }
+
+    .export-board .panel-item {
+      font-size: 17px;
+    }
+
+    .export-board .panel-detail {
+      font-size: 13px;
+    }
+
+    .export-board .panel-detail.current-detail {
+      font-size: 23px;
     }
 
     label {
@@ -95,13 +128,38 @@
     }
 
     .panel-item {
-      min-width: 0;
-      padding: 13px;
-      border: 1px solid #dbe2ed;
-      border-radius: 9px;
-      background: #fafbfe;
+     position: relative;
+      z-index: 2;
+      width: 100%;
+      font-size: clamp(10px, 2.5vw, 17px);
+      font-weight: 700;
+      line-height: 1.25;
+      color: #485249;
     }
 
+    .panel-detail {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+      font-size: clamp(9px, 1.9vw, 13px);
+      line-height: 1.2;
+      color: #777a70;
+    }
+
+    /* あとの数値を目立たせる */
+     .panel-detail.current-detail {
+      margin-top: 2px;
+      color: #d17b2f;
+      font-size: clamp(15px, 3.2vw, 23px);
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+.panel-detail.current-detail span {
+  font-weight: 800;
+}
+
+   
     .panel-heading {
       margin-bottom: 8px;
       font-size: 16px;
@@ -744,25 +802,45 @@
       state.className = "panel-state";
       state.textContent = isOpen ? "開放済み" : "未開放";
 
-      function createTextInput(field, labelText, placeholder, savedValue) {
-        const label = document.createElement("label");
-        const input = document.createElement("input");
+    function createTextInput(field, labelText, placeholder, savedValue) {
+      const label = document.createElement("label");
+      const input = document.createElement("input");
 
-        input.type = "text";
-        input.id = "panel-" + number + "-" + field;
-        input.dataset.number = String(number);
-        input.dataset.field = field;
-        input.maxLength = 500;
-        input.placeholder = placeholder;
-        input.value = inputValues[field] !== undefined
-          ? inputValues[field]
-          : savedValue;
+      input.type = "text";
+      input.id = "panel-" + number + "-" + field;
+      input.dataset.number = String(number);
+      input.dataset.field = field;
+      input.placeholder = placeholder;
 
-        label.htmlFor = input.id;
-        label.textContent = labelText;
+      const isCondition = field === "condition_text";
 
+      input.maxLength = isCondition ? 12 : 500;
+
+      input.value = inputValues[field] !== undefined
+        ? inputValues[field]
+        : savedValue;
+
+      label.htmlFor = input.id;
+      label.textContent = labelText;
+
+      if (!isCondition) {
         return { label, input };
       }
+
+      const counter = document.createElement("div");
+      counter.className = "condition-counter";
+
+      function updateCounter() {
+        const length = [...input.value].length;
+        counter.textContent = length + " / 12文字";
+        counter.classList.toggle("over-limit", length > 12);
+      }
+
+  input.addEventListener("input", updateCounter);
+  updateCounter();
+
+  return { label, input, counter };
+}
 
       const conditionInput = createTextInput(
         "condition_text",
@@ -828,18 +906,19 @@
         setFeaturedPanel(isFeatured ? null : number);
       });
 
-      item.append(
-        heading,
-        state,
-        conditionInput.label,
-        conditionInput.input,
-        targetInput.label,
-        targetInput.input,
-        currentInput.label,
-        currentInput.input,
-        panelButton,
-        featuredButton
-      );
+    item.append(
+      heading,
+      state,
+      conditionInput.label,
+      conditionInput.input,
+      conditionInput.counter,
+      targetInput.label,
+      targetInput.input,
+      currentInput.label,
+      currentInput.input,
+      panelButton,
+      featuredButton
+    );
 
       panelList.appendChild(item);
     }
@@ -1267,17 +1346,22 @@
           current_value: String(columns[2] || "").trim()
         };
 
-        if (
-          values.condition_text.length > 500 ||
-          values.target_value.length > 500 ||
-          values.current_value.length > 500
-        ) {
-          throw new Error(
-            lineNumber +
-            "行目：各項目は500文字以内にしてください。"
-          );
-        }
+       if ([...values.condition_text].length > 12) {
+       throw new Error(
+        lineNumber +
+    "行目：項目名は12文字以内にしてください。"
+      );
+    }
 
+    if (
+      values.target_value.length > 500 ||
+      values.current_value.length > 500
+    ) {
+      throw new Error(
+       lineNumber +
+        "行目：目標とあとは500文字以内にしてください。"
+      );
+    }
         const oldPanel = oldPanels.find(function (panel) {
           return Number(panel.panel_number) === index + 1;
         });
@@ -1362,19 +1446,25 @@
         'input[data-number="' + number + '"][data-field="current_value"]'
       );
 
-      if (!conditionInput || !targetInput || !currentInput) {
-        showMessage("条件 " + number + " の入力欄を確認してください。", "error");
-        return;
-      }
+    if ([...conditionInput.value].length > 12) {
+      showMessage(
+        "条件 " + number + " の項目名は12文字以内にしてください。",
+        "error"
+      );
+      conditionInput.focus();
+      return;
+    }
 
-      if (
-        conditionInput.value.length > 500 ||
-        targetInput.value.length > 500 ||
-        currentInput.value.length > 500
-      ) {
-        showMessage("各項目は500文字以内で入力してください。", "error");
-        return;
-      }
+    if (
+      targetInput.value.length > 500 ||
+      currentInput.value.length > 500
+    ) {
+      showMessage(
+        "目標とあとは500文字以内で入力してください。",
+        "error"
+      );
+      return;
+    }
 
       conditions.push({
         panel_number: number,
