@@ -913,7 +913,6 @@ function updateExportCard(challenge, panels) {
 
   exportProgressBar.style.width = `${percent}%`;
 
-  // 画面に表示されているボードをそのまま複製する
   const boardClone = board.cloneNode(true);
 
   boardClone.id = "exportBoardClone";
@@ -924,11 +923,10 @@ function updateExportCard(challenge, panels) {
   boardClone.style.height = "850px";
   boardClone.style.aspectRatio = "1 / 1";
 
-  // 立ち絵の位置調整を保存画像のサイズに合わせて拡大する
+  // 立ち絵の位置・拡大率を保存画像用に調整
   const screenBoardWidth = board.getBoundingClientRect().width;
-  const exportBoardWidth = 850;
   const ratio = screenBoardWidth > 0
-    ? exportBoardWidth / screenBoardWidth
+    ? 850 / screenBoardWidth
     : 1;
 
   const exportCharacterImage =
@@ -943,8 +941,37 @@ function updateExportCard(challenge, panels) {
       `translate(${x * ratio}px, ${y * ratio}px) scale(${scale})`;
   }
 
-  // パネルの扉・開閉状態・重点パネルの枠は変更しない
-  // 画面に表示されている状態をそのまま残す
+  // APIの開閉状態を基準に保存用パネルを確定する
+  const clonedPanels = boardClone.querySelectorAll(".panel");
+
+  clonedPanels.forEach((cell, index) => {
+    const panel = panels[index];
+
+    if (!panel) return;
+
+    cell.classList.remove("opening");
+
+    // アニメーションを保存画像に持ち込まない
+    cell.querySelectorAll(".door-left, .door-right").forEach(
+      door => door.remove()
+    );
+
+    if (panel.is_open === true) {
+      // 開いているパネルは扉なし
+      cell.classList.add("open");
+    } else {
+      // 閉じているパネルは扉あり
+      cell.classList.remove("open");
+
+      const leftDoor = document.createElement("div");
+      leftDoor.className = "door-left";
+
+      const rightDoor = document.createElement("div");
+      rightDoor.className = "door-right";
+
+      cell.prepend(leftDoor, rightDoor);
+    }
+  });
 
   exportBoard.replaceChildren(boardClone);
 }
