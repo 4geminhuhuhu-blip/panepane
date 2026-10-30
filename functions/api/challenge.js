@@ -157,7 +157,7 @@ export async function onRequest({ request, env }) {
 
       panelsUrl.searchParams.set(
         "select",
-        "panel_number,condition_text,is_open"
+        "panel_number,condition_text,target_value,current_value,is_open"
       );
 
       panelsUrl.searchParams.set(
@@ -209,9 +209,7 @@ export async function onRequest({ request, env }) {
         );
       }
 
-      // ----------------------------------------
-      // チャレンジ情報を取得する共通処理
-      // ----------------------------------------
+      // チャレンジ情報を取得
       const currentResponse = await fetch(challengeUrl, {
         headers,
       });
@@ -239,9 +237,7 @@ export async function onRequest({ request, env }) {
         );
       }
 
-      // ----------------------------------------
       // 終了済みチャレンジの操作を禁止
-      // ----------------------------------------
       if (current.is_ended === true) {
         return json(
           {
@@ -260,20 +256,9 @@ export async function onRequest({ request, env }) {
           `${baseUrl}/rest/v1/challenges`
         );
 
-        startUrl.searchParams.set(
-          "id",
-          `eq.${current.id}`
-        );
-
-        startUrl.searchParams.set(
-          "streamer_id",
-          `eq.${streamerId}`
-        );
-
-        startUrl.searchParams.set(
-          "is_ended",
-          "eq.false"
-        );
+        startUrl.searchParams.set("id", `eq.${current.id}`);
+        startUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+        startUrl.searchParams.set("is_ended", "eq.false");
 
         const response = await fetch(startUrl, {
           method: "PATCH",
@@ -332,20 +317,9 @@ export async function onRequest({ request, env }) {
           `${baseUrl}/rest/v1/challenges`
         );
 
-        endUrl.searchParams.set(
-          "id",
-          `eq.${current.id}`
-        );
-
-        endUrl.searchParams.set(
-          "streamer_id",
-          `eq.${streamerId}`
-        );
-
-        endUrl.searchParams.set(
-          "is_ended",
-          "eq.false"
-        );
+        endUrl.searchParams.set("id", `eq.${current.id}`);
+        endUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+        endUrl.searchParams.set("is_ended", "eq.false");
 
         const response = await fetch(endUrl, {
           method: "PATCH",
@@ -430,7 +404,6 @@ export async function onRequest({ request, env }) {
           );
         }
 
-        // 対象パネルだけを更新
         const panelUrl = new URL(
           `${baseUrl}/rest/v1/challenge_panels`
         );
@@ -590,20 +563,9 @@ export async function onRequest({ request, env }) {
         `${baseUrl}/rest/v1/challenges`
       );
 
-      updateUrl.searchParams.set(
-        "id",
-        `eq.${challengeId}`
-      );
-
-      updateUrl.searchParams.set(
-        "streamer_id",
-        `eq.${streamerId}`
-      );
-
-      updateUrl.searchParams.set(
-        "is_ended",
-        "eq.false"
-      );
+      updateUrl.searchParams.set("id", `eq.${challengeId}`);
+      updateUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+      updateUrl.searchParams.set("is_ended", "eq.false");
 
       const updateResponse = await fetch(updateUrl, {
         method: "PATCH",
@@ -664,7 +626,9 @@ export async function onRequest({ request, env }) {
       }
     }
 
-    // パネルの条件を保存
+    // ----------------------------------------
+    // パネルの3項目を保存
+    // ----------------------------------------
     for (const panel of body.panels) {
       const panelNumber = Number(panel.panel_number);
 
@@ -675,6 +639,43 @@ export async function onRequest({ request, env }) {
       ) {
         continue;
       }
+
+      const targetValue =
+        panel.target_value === "" ||
+        panel.target_value === null ||
+        panel.target_value === undefined
+          ? 0
+          : Number(panel.target_value);
+
+      const currentValue =
+        panel.current_value === "" ||
+        panel.current_value === null ||
+        panel.current_value === undefined
+          ? 0
+          : Number(panel.current_value);
+
+      if (
+        !Number.isFinite(targetValue) ||
+        !Number.isFinite(currentValue)
+      ) {
+        return json(
+          {
+            ok: false,
+            error: `${panelNumber}番のマスの目標値・現在値は数値で入力してください。`,
+          },
+          400
+        );
+      }
+
+      const panelData = {
+        condition_text:
+          typeof panel.condition_text === "string"
+            ? panel.condition_text
+            : "",
+        target_value: targetValue,
+        current_value: currentValue,
+        updated_at: new Date().toISOString(),
+      };
 
       const panelUrl = new URL(
         `${baseUrl}/rest/v1/challenge_panels`
@@ -689,13 +690,6 @@ export async function onRequest({ request, env }) {
         "panel_number",
         `eq.${panelNumber}`
       );
-
-      const panelData = {
-        condition_text:
-          typeof panel.condition_text === "string"
-            ? panel.condition_text
-            : "",
-      };
 
       // パネルがすでに存在するか確認
       const findUrl = new URL(panelUrl);
@@ -718,7 +712,8 @@ export async function onRequest({ request, env }) {
       const found = await findResponse.json();
 
       if (found.length > 0) {
-        // 既存パネルの条件を更新
+        // 既存パネルの3項目だけを更新
+        // is_open と opened_at は変更しない
         const saveResponse = await fetch(panelUrl, {
           method: "PATCH",
           headers,
