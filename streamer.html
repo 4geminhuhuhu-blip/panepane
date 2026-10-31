@@ -343,6 +343,22 @@
       font-size: 14px;
     }
 
+
+    .public-settings textarea { min-height: 110px; resize: vertical; }
+    .setting-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+    .setting-row input[type="checkbox"] { width: auto; }
+    .setting-row label { display: inline; margin: 0; }
+    .calculator-gift-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 8px 0; }
+    .calculator-results { margin-top: 16px; overflow-x: auto; }
+    .calculator-results table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .calculator-results th, .calculator-results td { padding: 9px; border-bottom: 1px solid #e2e8f0; text-align: right; white-space: nowrap; }
+    .calculator-results th:first-child, .calculator-results td:first-child { text-align: left; }
+    .calculator-status { min-height: 24px; margin-top: 10px; color: #64748b; }
+    .calculator-status.error { color: #b91c1c; }
+    .calculator-summary { margin-top: 14px; padding: 12px; background: #f8fafc; border-radius: 8px; line-height: 1.8; }
+    .percentage-input { max-width: 100px; }
+    @media (max-width: 560px) { .calculator-gift-row { grid-template-columns: 1fr; } }
+
     @media (max-width: 560px) {
       .card { padding: 17px; }
       .panel-list { grid-template-columns: 1fr; }
@@ -510,6 +526,21 @@
       <p id="message" role="status" aria-live="polite"></p>
     </section>
 
+    <section class="card public-settings">
+      <h2>公開画面の設定</h2>
+      <p class="hint">お礼メッセージはチャレンジ終了後に閲覧者へ表示されます。終了後も変更できます。</p>
+      <label for="thank-you-message">お礼メッセージ</label>
+      <textarea id="thank-you-message" maxlength="5000" placeholder="参加してくれてありがとうございました！"></textarea>
+      <div class="setting-row">
+        <input id="show-watermark" type="checkbox" checked>
+        <label for="show-watermark">閲覧者画面と保存画像にパネパンの透かしを表示する</label>
+      </div>
+      <div class="actions">
+        <button id="save-public-settings-button" type="button">公開設定を保存</button>
+      </div>
+      <p id="public-settings-message" role="status" aria-live="polite"></p>
+    </section>
+
     <section class="card">
       <h2>アカウント</h2>
       <p class="hint">ログイン中の配信者専用ページです。</p>
@@ -517,6 +548,25 @@
         ログアウト
       </button>
       <p id="logout-message" role="status"></p>
+    </section>
+
+    <section class="card" id="gift-calculator">
+      <h2>ギフトポイント配分計算</h2>
+      <p class="hint">ギフトのポイント数と目標応援ポイントを入力すると、目標に近づく配分を計算できます。最大20種類まで登録できます。入力内容や計算結果はこのブラウザ内だけで扱い、データベースには保存しません。</p>
+      <label for="gift-target-points">目標応援ポイント</label>
+      <input id="gift-target-points" type="number" min="1" step="1" placeholder="例：10000">
+      <p class="hint">ギフト数の目安：目標応援ポイント ÷ 3（切り上げ）</p>
+      <div id="gift-input-list"></div>
+      <div class="actions">
+        <button id="add-gift-input" class="secondary-button" type="button">ギフト入力欄を追加</button>
+        <button id="calculate-gift-distribution" type="button">配分計算</button>
+      </div>
+      <div id="gift-percentage-editor"></div>
+      <div class="actions">
+        <button id="recalculate-gift-distribution" type="button" disabled>再計算</button>
+      </div>
+      <p id="gift-calculator-status" class="calculator-status" role="status" aria-live="polite"></p>
+      <div id="gift-calculator-results" class="calculator-results"></div>
     </section>
   </main>
 
@@ -532,6 +582,10 @@
   const message = document.getElementById("message");
   const startButton = document.getElementById("start-button");
   const endButton = document.getElementById("end-button");
+  const thankYouMessageInput = document.getElementById("thank-you-message");
+  const showWatermarkInput = document.getElementById("show-watermark");
+  const savePublicSettingsButton = document.getElementById("save-public-settings-button");
+  const publicSettingsMessage = document.getElementById("public-settings-message");
 
   const viewerUrlInput = document.getElementById("viewer-url");
   const copyViewerUrlButton = document.getElementById("copy-viewer-url-button");
@@ -734,6 +788,11 @@
 
     endButton.hidden = !challenge || !started || ended;
     endButton.disabled = loading || saving;
+
+    // 公開設定はチャレンジ終了後も変更できる
+    thankYouMessageInput.disabled = loading || saving;
+    showWatermarkInput.disabled = loading || saving;
+    savePublicSettingsButton.disabled = loading || saving || !challenge;
 
     panelList.querySelectorAll(".panel-open-button").forEach(function (button) {
       button.disabled =
@@ -1127,6 +1186,15 @@
       challenge = result.challenge || null;
       panels = Array.isArray(result.panels) ? result.panels : [];
 
+      thankYouMessageInput.value = challenge && typeof challenge.thank_you_message === "string"
+        ? challenge.thank_you_message
+        : "";
+      showWatermarkInput.checked = !challenge || typeof challenge.show_watermark !== "boolean"
+        ? true
+        : challenge.show_watermark;
+      publicSettingsMessage.textContent = "";
+      publicSettingsMessage.className = "";
+
       featuredPanelNumber =
         challenge && challenge.featured_panel_number != null
           ? Number(challenge.featured_panel_number)
@@ -1494,6 +1562,8 @@
           image_position_x: Number(imageXInput.value),
           image_position_y: Number(imageYInput.value),
           image_scale: Number(imageScaleInput.value),
+          thank_you_message: thankYouMessageInput.value,
+          show_watermark: showWatermarkInput.checked,
           panels: conditions
         })
       });
@@ -1516,6 +1586,61 @@
         " 入力内容は画面に残しています。",
         "error"
       );
+    } finally {
+      saving = false;
+      updateControls();
+    }
+  }
+
+  async function savePublicSettings() {
+    if (loading || saving) return;
+    if (!challenge || !challenge.id) {
+      publicSettingsMessage.textContent = "先にチャレンジ設定を保存してください。";
+      publicSettingsMessage.className = "error";
+      return;
+    }
+
+    const messageText = thankYouMessageInput.value;
+    if (messageText.length > 5000) {
+      publicSettingsMessage.textContent = "お礼メッセージは5000文字以内で入力してください。";
+      publicSettingsMessage.className = "error";
+      return;
+    }
+
+    saving = true;
+    updateControls();
+    publicSettingsMessage.textContent = "公開設定を保存しています...";
+    publicSettingsMessage.className = "";
+
+    try {
+      const sessionOk = await checkSession();
+      if (!sessionOk) return;
+
+      const response = await fetch("/api/challenge", {
+        method: "PATCH",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update-public-settings",
+          thank_you_message: messageText,
+          show_watermark: showWatermarkInput.checked
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || result.ok !== true) {
+        throw new Error(result.error || "公開設定を保存できませんでした。");
+      }
+
+      if (challenge) {
+        challenge.thank_you_message = result.thank_you_message;
+        challenge.show_watermark = result.show_watermark;
+      }
+      publicSettingsMessage.textContent = result.message || "公開設定を保存しました。";
+      publicSettingsMessage.className = "success";
+    } catch (error) {
+      publicSettingsMessage.textContent = error.message || "公開設定の保存に失敗しました。";
+      publicSettingsMessage.className = "error";
     } finally {
       saving = false;
       updateControls();
@@ -1684,6 +1809,7 @@
   });
 
   saveButton.addEventListener("click", saveChallenge);
+  savePublicSettingsButton.addEventListener("click", savePublicSettings);
 
   document.getElementById("logout-button").addEventListener(
     "click",
@@ -1715,6 +1841,270 @@
       }
     }
   );
+
+  // ギフトポイント計算（ブラウザ内のみ。DBには保存しない）
+  const giftInputList = document.getElementById("gift-input-list");
+  const giftTargetInput = document.getElementById("gift-target-points");
+  const addGiftInputButton = document.getElementById("add-gift-input");
+  const calculateGiftButton = document.getElementById("calculate-gift-distribution");
+  const percentageEditor = document.getElementById("gift-percentage-editor");
+  const recalculateGiftButton = document.getElementById("recalculate-gift-distribution");
+  const giftCalculatorStatus = document.getElementById("gift-calculator-status");
+  const giftCalculatorResults = document.getElementById("gift-calculator-results");
+  let giftRows = [];
+  let confirmedGiftResult = null;
+  let confirmedPercentages = [];
+  let confirmedTotalCount = 0;
+  let confirmedInputSignature = "";
+
+  function addGiftRow(value) {
+    if (giftRows.length >= 20) return;
+    const row = document.createElement("div");
+    row.className = "calculator-gift-row";
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "1";
+    input.step = "1";
+    input.placeholder = "ギフトのポイント数（例：100）";
+    input.value = value || "";
+    input.setAttribute("aria-label", "ギフトのポイント数");
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "secondary-button";
+    remove.textContent = "この欄を削除";
+    remove.addEventListener("click", function () {
+      giftRows = giftRows.filter(function (item) { return item.row !== row; });
+      row.remove();
+      markGiftInputsChanged();
+      updateGiftAddButton();
+    });
+    input.addEventListener("input", markGiftInputsChanged);
+    row.append(input, remove);
+    giftInputList.appendChild(row);
+    giftRows.push({ row: row, input: input });
+    updateGiftAddButton();
+  }
+
+  function updateGiftAddButton() {
+    addGiftInputButton.disabled = giftRows.length >= 20;
+    addGiftInputButton.textContent = giftRows.length >= 20
+      ? "最大20種類まで登録できます"
+      : "ギフト入力欄を追加（" + giftRows.length + "/20）";
+  }
+
+  function getGiftInputs() {
+    const values = [];
+    const seen = new Set();
+    for (const item of giftRows) {
+      const raw = item.input.value.trim();
+      if (!raw) continue;
+      const value = Number(raw);
+      if (!Number.isSafeInteger(value) || value <= 0) {
+        throw new Error("ギフトポイントは1以上の整数で入力してください。");
+      }
+      if (seen.has(value)) {
+        throw new Error("同じポイント数のギフトが重複しています。重複を解消してください。");
+      }
+      seen.add(value);
+      values.push(value);
+    }
+    if (!values.length) throw new Error("ギフトポイントを1種類以上入力してください。");
+    return values;
+  }
+
+  function getGiftTarget() {
+    const target = Number(giftTargetInput.value);
+    if (!Number.isSafeInteger(target) || target <= 0) {
+      throw new Error("目標応援ポイントは1以上の整数で入力してください。");
+    }
+    return target;
+  }
+
+  function giftSignature() {
+    return JSON.stringify({
+      target: giftTargetInput.value,
+      values: giftRows.map(function (r) { return r.input.value; })
+    });
+  }
+
+  function markGiftInputsChanged() {
+    if (!confirmedGiftResult) return;
+    giftCalculatorStatus.textContent = "入力が変更されています。結果はまだ更新されていません（未再計算）。";
+    giftCalculatorStatus.className = "calculator-status";
+  }
+
+  function chooseInitialDistribution(values, target) {
+    const maxPoint = Math.max.apply(null, values);
+    const limit = target + maxPoint;
+    if (limit > 2000000) {
+      throw new Error("目標ポイントが大きいため計算できません。目標を200万ポイント以下にしてください。");
+    }
+    const estimatedCount = Math.ceil(target / 3);
+    const bestCount = new Array(limit + 1).fill(Infinity);
+    const previous = new Array(limit + 1).fill(-1);
+    bestCount[0] = 0;
+
+    for (let sum = 1; sum <= limit; sum++) {
+      for (let i = 0; i < values.length; i++) {
+        const point = values[i];
+        if (sum >= point && bestCount[sum - point] !== Infinity) {
+          const count = bestCount[sum - point] + 1;
+          if (count < bestCount[sum]) {
+            bestCount[sum] = count;
+            previous[sum] = i;
+          }
+        }
+      }
+    }
+
+    let bestSum = -1;
+    let bestDiff = Infinity;
+    let bestCountDiff = Infinity;
+    for (let sum = 1; sum <= limit; sum++) {
+      if (bestCount[sum] === Infinity) continue;
+      const diff = Math.abs(sum - target);
+      const countDiff = Math.abs(bestCount[sum] - estimatedCount);
+      if (diff < bestDiff || (diff === bestDiff && countDiff < bestCountDiff)) {
+        bestSum = sum;
+        bestDiff = diff;
+        bestCountDiff = countDiff;
+      }
+    }
+    if (bestSum < 0) throw new Error("配分を計算できませんでした。");
+
+    const quantities = values.map(function () { return 0; });
+    let cursor = bestSum;
+    while (cursor > 0) {
+      const index = previous[cursor];
+      if (index < 0) throw new Error("配分結果の復元に失敗しました。");
+      quantities[index]++;
+      cursor -= values[index];
+    }
+    return { quantities: quantities, totalCount: bestCount[bestSum], totalPoints: bestSum, estimatedCount: estimatedCount };
+  }
+
+  function allocateByPercentages(values, percentages, totalCount) {
+    const raw = percentages.map(function (p) { return totalCount * p / 100; });
+    const quantities = raw.map(Math.floor);
+    let remainder = totalCount - quantities.reduce(function (a, b) { return a + b; }, 0);
+    const order = raw.map(function (v, i) { return { index: i, fraction: v - Math.floor(v) }; })
+      .sort(function (a, b) { return b.fraction - a.fraction || a.index - b.index; });
+    for (let i = 0; i < remainder; i++) quantities[order[i % order.length].index]++;
+    return {
+      quantities: quantities,
+      totalCount: quantities.reduce(function (a, b) { return a + b; }, 0),
+      totalPoints: quantities.reduce(function (sum, quantity, i) { return sum + quantity * values[i]; }, 0)
+    };
+  }
+
+  function renderGiftResults(values, percentages, result, target, label) {
+    let html = "<table><thead><tr><th>ギフトポイント</th><th>配分割合</th><th>個数</th><th>小計ポイント</th></tr></thead><tbody>";
+    values.forEach(function (value, i) {
+      html += "<tr><td>" + value.toLocaleString("ja-JP") + " pt</td><td>" + percentages[i].toFixed(2) + "%</td><td>" + result.quantities[i].toLocaleString("ja-JP") + " 個</td><td>" + (value * result.quantities[i]).toLocaleString("ja-JP") + " pt</td></tr>";
+    });
+    html += "</tbody></table>";
+    const difference = result.totalPoints - target;
+    html += '<div class="calculator-summary">' +
+      "<strong>" + label + "</strong><br>" +
+      "合計ギフト数：" + result.totalCount.toLocaleString("ja-JP") + " 個<br>" +
+      "合計応援ポイント：" + result.totalPoints.toLocaleString("ja-JP") + " pt<br>" +
+      "目標との差：" + (difference > 0 ? "+" : "") + difference.toLocaleString("ja-JP") + " pt" +
+      "</div>";
+    giftCalculatorResults.innerHTML = html;
+  }
+
+  function renderPercentageEditor(values, percentages) {
+    percentageEditor.replaceChildren();
+    const heading = document.createElement("h3");
+    heading.textContent = "配分割合の調整";
+    percentageEditor.appendChild(heading);
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent = "割合は自由に編集できます。合計を100%にしてから「再計算」を押してください。編集しただけでは結果は変わりません。";
+    percentageEditor.appendChild(hint);
+    values.forEach(function (value, index) {
+      const label = document.createElement("label");
+      label.textContent = value + " pt のギフトの割合（%）";
+      const input = document.createElement("input");
+      input.type = "number";
+      input.min = "0";
+      input.max = "100";
+      input.step = "0.01";
+      input.className = "percentage-input";
+      input.dataset.percentageIndex = String(index);
+      input.value = percentages[index].toFixed(2);
+      input.addEventListener("input", function () {
+        giftCalculatorStatus.textContent = "割合が変更されています。結果に反映するには「再計算」を押してください。";
+        giftCalculatorStatus.className = "calculator-status";
+      });
+      percentageEditor.append(label, input);
+    });
+  }
+
+  function readPercentages() {
+    const inputs = Array.from(percentageEditor.querySelectorAll("input[data-percentage-index]"));
+    const percentages = inputs.map(function (input) {
+      const value = Number(input.value);
+      if (!Number.isFinite(value) || value < 0 || value > 100) {
+        throw new Error("配分割合は0〜100%で入力してください。");
+      }
+      return value;
+    });
+    const total = percentages.reduce(function (a, b) { return a + b; }, 0);
+    if (Math.abs(total - 100) > 0.01) throw new Error("配分割合の合計を100%にしてください。");
+    return percentages;
+  }
+
+  function calculateInitialGiftDistribution() {
+    try {
+      const values = getGiftInputs();
+      const target = getGiftTarget();
+      const result = chooseInitialDistribution(values, target);
+      const total = result.quantities.reduce(function (a, b) { return a + b; }, 0);
+      const percentages = result.quantities.map(function (q) { return total ? q * 100 / total : 0; });
+      confirmedGiftResult = result;
+      confirmedTotalCount = result.totalCount;
+      confirmedPercentages = percentages.slice();
+      confirmedInputSignature = giftSignature();
+      renderPercentageEditor(values, percentages);
+      renderGiftResults(values, percentages, result, target, "初回の自動配分結果");
+      recalculateGiftButton.disabled = false;
+      giftCalculatorStatus.textContent = "計算しました。割合を編集した場合は「再計算」を押すと反映されます。ギフト数の目安は" + result.estimatedCount.toLocaleString("ja-JP") + "個です。";
+      giftCalculatorStatus.className = "calculator-status";
+    } catch (error) {
+      giftCalculatorStatus.textContent = error.message;
+      giftCalculatorStatus.className = "calculator-status error";
+    }
+  }
+
+  function recalculateGiftDistribution() {
+    try {
+      if (!confirmedGiftResult) throw new Error("先に「配分計算」を実行してください。");
+      if (giftSignature() !== confirmedInputSignature) {
+        throw new Error("ギフトポイントまたは目標が変更されています。先に「配分計算」を押してください。");
+      }
+      const values = getGiftInputs();
+      const target = getGiftTarget();
+      const percentages = readPercentages();
+      const result = allocateByPercentages(values, percentages, confirmedTotalCount);
+      confirmedGiftResult = result;
+      confirmedPercentages = percentages.slice();
+      renderGiftResults(values, percentages, result, target, "手動割合での再計算結果");
+      giftCalculatorStatus.textContent = "再計算しました。合計ギフト数は初回計算時の" + confirmedTotalCount.toLocaleString("ja-JP") + "個に固定しています。";
+      giftCalculatorStatus.className = "calculator-status";
+    } catch (error) {
+      giftCalculatorStatus.textContent = error.message;
+      giftCalculatorStatus.className = "calculator-status error";
+    }
+  }
+
+  addGiftInputButton.addEventListener("click", function () { addGiftRow(""); });
+  calculateGiftButton.addEventListener("click", calculateInitialGiftDistribution);
+  recalculateGiftButton.addEventListener("click", recalculateGiftDistribution);
+  giftTargetInput.addEventListener("input", markGiftInputsChanged);
+  addGiftRow("");
+  addGiftRow("");
+  addGiftRow("");
 
   applyImageAdjustments();
   renderPanels(false);
