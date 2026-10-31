@@ -348,18 +348,29 @@
     .setting-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
     .setting-row input[type="checkbox"] { width: auto; }
     .setting-row label { display: inline; margin: 0; }
-    .calculator-gift-row {display: grid;grid-template-columns: minmax(0, 1fr) auto;gap: 10px;margin: 8px 0;align-items: center;}
-    .calculator-gift-row input {min-width: 0;}
-    .calculator-gift-row button {white-space: nowrap;}
-    .percentage-row {display: grid;grid-template-columns: minmax(0, 1fr) 120px;gap: 12px;align-items: center;margin: 10px 0;}
-    .percentage-row label {margin: 0;}
-    .percentage-input {max-width: 120px;}
-
-    @media (max-width: 560px) {
-      .calculator-gift-row {grid-template-columns: minmax(0, 1fr) auto;}
-
-      .percentage-row {grid-template-columns: minmax(0, 1fr) 100px;
-      }
+    .gift-target-grid {display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start;}
+    .gift-target-grid label {margin-top:8px;}
+    .gift-target-display {min-height:45px;padding:10px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;font-size:20px;font-weight:700;text-align:center;}
+    .gift-table-wrap {width:100%;overflow-x:auto;}
+    .gift-table-head,.calculator-gift-row {display:grid;grid-template-columns:minmax(110px,1.3fr) minmax(75px,.7fr) minmax(80px,.8fr) minmax(100px,1fr) 64px;gap:8px;align-items:center;min-width:580px;}
+    .gift-table-head {font-weight:700;text-align:center;margin:14px 0 6px;}
+    .calculator-gift-row {margin:8px 0;padding:4px 0;}
+    .calculator-gift-row input {min-width:0;margin:0;}
+    .gift-cell {padding:10px 5px;border:1px solid #dbe2ed;border-radius:7px;text-align:center;min-height:42px;background:#fff;}
+    .gift-category {display:block;font-size:11px;color:#64748b;}
+    .calculator-gift-row button {padding:10px 8px;white-space:nowrap;}
+    .percentage-row {display:grid;grid-template-columns:minmax(0,1fr) 120px;gap:12px;align-items:center;margin:10px 0;}
+    .percentage-row label {margin:0;}
+    .percentage-input {max-width:120px;}
+    .calculator-summary {margin-top:16px;padding:14px;background:#f8fafc;border-radius:8px;line-height:1.9;}
+    .calculator-results table {width:100%;border-collapse:collapse;margin-top:12px;}
+    .calculator-results th,.calculator-results td {padding:9px 6px;border-bottom:1px solid #e2e8f0;text-align:right;}
+    .calculator-results th:first-child,.calculator-results td:first-child {text-align:left;}
+    .calculator-results th {background:#f8fafc;}
+    @media (max-width:560px) {
+      .gift-target-grid {grid-template-columns:1fr;gap:8px;}
+      .percentage-row {grid-template-columns:minmax(0,1fr) 100px;}
+      .calculator-results {overflow-x:auto;}
     }
   </style>
 </head>
@@ -550,81 +561,55 @@
     </section>
 
       <section class="card" id="gift-calculator">
-      <h2>ギフトポイント配分計算</h2>
-
-      <p class="hint">
-        目標応援ポイントと使用するギフトのポイント数を入力すると、
-        必要なギフトポイントと配分割合・個数を自動計算します。
-        最大20種類まで登録できます。
-        入力内容はこのブラウザ内だけで扱い、データベースには保存しません。
-      </p>
-
-      <label for="gift-target-points">目標応援ポイント</label>
-      <input
-        id="gift-target-points"
-        type="number"
-        min="1"
-        step="1"
-        placeholder="例：160000"
-      >
-
-      <div class="calculator-summary">
-        **必要ギフトポイント**
-        <strong id="required-gift-points">0 pt</strong>
+        <h2>ギフトポイント配分計算</h2>
         <p class="hint">
-          必要ギフトポイント ＝ 目標応援ポイント ÷ 3（小数点以下切り上げ）
+          目標応援ポイントとギフトのポイント数を入力して配分を計算します。
+          ギフトポイントは重複して登録できます。最大20行まで入力できます。
+          入力内容はこのブラウザ内だけで扱い、データベースには保存しません。
         </p>
-      </div>
 
-      <h3>使用するギフト</h3>
-      <p class="hint">
-        ギフトのポイント数を入力してください。
-        ポイント数の低いギフトほど、配分割合が高くなります。
-      </p>
+        <div class="gift-target-grid">
+          <div>
+            <label for="gift-target-points">目標応援ポイント</label>
+            <input id="gift-target-points" type="number" min="1" step="1" placeholder="例：2000000">
+          </div>
+          <div>
+            <label>配分対象ポイント</label>
+            <div class="gift-target-display" id="required-gift-points">0 pt</div>
+            <p class="hint">高額20％・中額50％・低額は残額を目安に配分します。</p>
+          </div>
+        </div>
 
-      <div id="gift-input-list"></div>
+        <h3>使用するギフト</h3>
+        <p class="hint">
+          ギフトのポイント数を入力してください。入力したポイントを高い順に並べ、
+          上位30％を高額、中間を中額、下位30％を低額として自動分類します。
+        </p>
 
-      <div class="actions">
-        <button
-          id="add-gift-input"
-          class="secondary-button"
-          type="button"
-        >
-          ギフト欄を追加
-        </button>
+        <div class="gift-table-wrap">
+          <div class="gift-table-head">
+            <span>ギフト種類（pt）</span>
+            <span>割合</span>
+            <span>必要個数</span>
+            <span>ギフトポイント</span>
+            <span></span>
+          </div>
+          <div id="gift-input-list"></div>
+        </div>
 
-        <button
-          id="calculate-gift-distribution"
-          type="button"
-        >
-          配分計算
-        </button>
-      </div>
+        <div class="actions">
+          <button id="add-gift-input" class="secondary-button" type="button">ギフト欄を追加</button>
+          <button id="calculate-gift-distribution" type="button">配分計算</button>
+        </div>
 
-      <div id="gift-percentage-editor"></div>
+        <div id="gift-percentage-editor"></div>
+        <div class="actions">
+          <button id="recalculate-gift-distribution" type="button" disabled>再計算</button>
+        </div>
 
-      <div class="actions">
-        <button
-          id="recalculate-gift-distribution"
-          type="button"
-          disabled
-        >
-          再計算
-        </button>
-      </div>
-
-      <p
-        id="gift-calculator-status"
-        class="calculator-status"
-        role="status"
-        aria-live="polite"
-      ></p>
-
-      <div
-        id="gift-calculator-results"
-        class="calculator-results"
-      ></div>
-    </section>
+        <p id="gift-calculator-status" class="calculator-status" role="status" aria-live="polite"></p>
+        <div id="gift-calculator-results" class="calculator-results"></div>
+      </section>
   </main>
 
 <script>
@@ -1907,11 +1892,9 @@
 const giftInputList = document.getElementById("gift-input-list");
 const giftTargetInput = document.getElementById("gift-target-points");
 const requiredGiftPointsEl = document.getElementById("required-gift-points");
-
 const addGiftInputButton = document.getElementById("add-gift-input");
 const calculateGiftButton = document.getElementById("calculate-gift-distribution");
 const recalculateGiftButton = document.getElementById("recalculate-gift-distribution");
-
 const percentageEditor = document.getElementById("gift-percentage-editor");
 const giftCalculatorStatus = document.getElementById("gift-calculator-status");
 const giftCalculatorResults = document.getElementById("gift-calculator-results");
@@ -1919,35 +1902,21 @@ const giftCalculatorResults = document.getElementById("gift-calculator-results")
 let giftRows = [];
 let confirmedTotalCount = 0;
 let confirmedInputSignature = "";
-let currentGiftValues = [];
 
-// ----------------------------------------
-// 必要ギフトポイントを計算
-// 例：160,000 ÷ 3 → 53,334
-// ----------------------------------------
+function formatPoints(value) {
+  return Math.round(value).toLocaleString("ja-JP") + " pt";
+}
 
 function updateRequiredGiftPoints() {
-  const supportPoints = Number(giftTargetInput.value);
-
-  if (!Number.isSafeInteger(supportPoints) || supportPoints <= 0) {
-    requiredGiftPointsEl.textContent = "0 pt";
-    return;
-  }
-
-  const requiredPoints = Math.ceil(supportPoints / 3);
-
+  const target = Number(giftTargetInput.value);
   requiredGiftPointsEl.textContent =
-    requiredPoints.toLocaleString("ja-JP") + " pt";
+    Number.isSafeInteger(target) && target > 0 ? formatPoints(target) : "0 pt";
 }
 
 giftTargetInput.addEventListener("input", function () {
   updateRequiredGiftPoints();
   markGiftInputsChanged();
 });
-
-// ----------------------------------------
-// ギフト入力欄を追加
-// ----------------------------------------
 
 function addGiftRow() {
   if (giftRows.length >= 20) return;
@@ -1959,270 +1928,239 @@ function addGiftRow() {
   input.type = "number";
   input.min = "1";
   input.step = "1";
-  input.placeholder = "ギフトポイント数（例：100）";
+  input.placeholder = "例：30000";
   input.setAttribute("aria-label", "ギフトポイント数");
+
+  const percent = document.createElement("div");
+  percent.className = "gift-cell";
+  percent.textContent = "—";
+
+  const quantity = document.createElement("div");
+  quantity.className = "gift-cell";
+  quantity.textContent = "—";
+
+  const subtotal = document.createElement("div");
+  subtotal.className = "gift-cell";
+  subtotal.textContent = "—";
 
   const removeButton = document.createElement("button");
   removeButton.type = "button";
   removeButton.className = "secondary-button";
   removeButton.textContent = "削除";
-
   removeButton.addEventListener("click", function () {
-    giftRows = giftRows.filter(function (item) {
-      return item.row !== row;
-    });
-
+    giftRows = giftRows.filter(item => item.row !== row);
     row.remove();
     markGiftInputsChanged();
     updateGiftAddButton();
   });
 
   input.addEventListener("input", markGiftInputsChanged);
-
-  row.append(input, removeButton);
+  row.append(input, percent, quantity, subtotal, removeButton);
   giftInputList.appendChild(row);
-
-  giftRows.push({
-    row: row,
-    input: input
-  });
-
+  giftRows.push({row, input, percent, quantity, subtotal, category: ""});
   updateGiftAddButton();
 }
 
 function updateGiftAddButton() {
   addGiftInputButton.disabled = giftRows.length >= 20;
-
-  addGiftInputButton.textContent =
-    giftRows.length >= 20
-      ? "最大20種類まで登録できます"
-      : "ギフト欄を追加（" + giftRows.length + "/20）";
+  addGiftInputButton.textContent = giftRows.length >= 20
+    ? "最大20行まで登録できます"
+    : "ギフト欄を追加（" + giftRows.length + "/20）";
 }
-
-// ----------------------------------------
-// 入力されたギフトポイントを取得
-// ----------------------------------------
 
 function getGiftInputs() {
-  const values = [];
-  const seen = new Set();
-
-  giftRows.forEach(function (item) {
+  const items = [];
+  giftRows.forEach(function (item, index) {
     const raw = item.input.value.trim();
-
-    // 空欄は計算対象から除外
     if (!raw) return;
-
-    const value = Number(raw);
-
-    if (!Number.isSafeInteger(value) || value <= 0) {
+    const point = Number(raw);
+    if (!Number.isSafeInteger(point) || point <= 0) {
       throw new Error("ギフトポイントは1以上の整数で入力してください。");
     }
-
-    if (seen.has(value)) {
-      throw new Error("同じポイント数のギフトが重複しています。");
-    }
-
-    seen.add(value);
-    values.push(value);
+    items.push({rowItem: item, point, originalIndex: index, quantity: 0, category: ""});
   });
-
-  if (values.length === 0) {
-    throw new Error("ギフトポイントを1種類以上入力してください。");
-  }
-
-  return values;
+  if (!items.length) throw new Error("ギフトポイントを1種類以上入力してください。");
+  return items;
 }
-
-// ----------------------------------------
-// 目標応援ポイントと必要ギフトポイント
-// ----------------------------------------
 
 function getSupportTarget() {
   const target = Number(giftTargetInput.value);
-
   if (!Number.isSafeInteger(target) || target <= 0) {
     throw new Error("目標応援ポイントは1以上の整数で入力してください。");
   }
-
   return target;
 }
-
-function getRequiredGiftPoints() {
-  return Math.ceil(getSupportTarget() / 3);
-}
-
-// ----------------------------------------
-// 入力内容が変更されたか確認するための記録
-// ----------------------------------------
 
 function giftSignature() {
   return JSON.stringify({
     target: giftTargetInput.value,
-    values: giftRows.map(function (item) {
-      return item.input.value;
-    })
+    values: giftRows.map(item => item.input.value)
   });
 }
 
 function markGiftInputsChanged() {
   if (!confirmedInputSignature) return;
-
   giftCalculatorStatus.textContent =
     "入力内容が変更されています。もう一度「配分計算」を押してください。";
-
   giftCalculatorStatus.className = "calculator-status";
+  recalculateGiftButton.disabled = true;
 }
 
-// ----------------------------------------
-// 初回配分計算
-//
-// ポイント数が低いギフトほど割合を高くする。
-// 割合の重みは「1 ÷ ギフトポイント数」で計算。
-// ----------------------------------------
+function classifyGiftItems(items) {
+  const sorted = items.slice().sort((a, b) =>
+    b.point - a.point || a.originalIndex - b.originalIndex
+  );
+  const count = sorted.length;
+  let highCount = count === 1 ? 1 : Math.max(1, Math.round(count * 0.3));
+  let lowCount = count <= 1 ? 0 : Math.max(1, Math.round(count * 0.3));
+  while (highCount + lowCount > count) lowCount--;
 
-function calculateRecommendedPercentages(values) {
-  const weights = values.map(function (point) {
-    return 1 / point;
+  sorted.forEach(function (item, index) {
+    if (index < highCount) item.category = "高額";
+    else if (index >= count - lowCount) item.category = "低額";
+    else item.category = "中額";
   });
-
-  const totalWeight = weights.reduce(function (sum, value) {
-    return sum + value;
-  }, 0);
-
-  return weights.map(function (weight) {
-    return weight / totalWeight * 100;
-  });
+  return items;
 }
 
-// ----------------------------------------
-// 割合から個数を計算
-// 小数点以下は端数の大きい順に配分し、
-// 合計個数が必ず一致するようにする
-// ----------------------------------------
+/*
+ * 指定グループのギフトを無制限に使用し、目標額に最も近い合計を探す。
+ * 目標額を超える場合も、最大でそのグループの最高額ギフト1個分まで探索する。
+ */
+function findNearestCombination(groupItems, target) {
+  const quantities = new Map(groupItems.map(item => [item, 0]));
+  if (!groupItems.length || target <= 0) return {quantities, total: 0};
 
-function allocateByPercentages(values, percentages, totalCount) {
-  const rawCounts = percentages.map(function (percentage) {
-    return totalCount * percentage / 100;
-  });
-
-  const quantities = rawCounts.map(function (count) {
-    return Math.floor(count);
-  });
-
-  let remaining =
-    totalCount -
-    quantities.reduce(function (sum, count) {
-      return sum + count;
-    }, 0);
-
-  const fractions = rawCounts.map(function (count, index) {
-    return {
-      index: index,
-      fraction: count - Math.floor(count)
-    };
-  });
-
-  fractions.sort(function (a, b) {
-    return b.fraction - a.fraction;
-  });
-
-  for (let i = 0; i < remaining; i++) {
-    quantities[fractions[i].index]++;
+  const maxPoint = Math.max(...groupItems.map(item => item.point));
+  const limit = Math.ceil(target + maxPoint);
+  if (!Number.isSafeInteger(limit) || limit > 5000000) {
+    throw new Error("計算対象ポイントが大きすぎます。目標ポイントを小さくしてお試しください。");
   }
 
-  const totalPoints = quantities.reduce(function (sum, quantity, index) {
-    return sum + quantity * values[index];
-  }, 0);
+  const previousCoin = new Int16Array(limit + 1);
+  const previousSum = new Int32Array(limit + 1);
+  previousCoin.fill(-2);
+  previousCoin[0] = -1;
 
-  return {
-    quantities: quantities,
-    totalCount: totalCount,
-    totalPoints: totalPoints
-  };
-}
-
-// ----------------------------------------
-// 配分結果の表示
-// ----------------------------------------
-
-function renderGiftResults(values, percentages, result, requiredPoints) {
-  let html = `
-    <h3>計算結果</h3>
-    <div class="calculator-results">
-      <table>
-        <thead>
-          <tr>
-            <th>使用ギフトポイント</th>
-            <th>割合</th>
-            <th>個数</th>
-            <th>小計ポイント</th>
-          </tr>
-        </thead>
-        <tbody>
-  `;
-
-  values.forEach(function (value, index) {
-    html += `
-      <tr>
-        <td>${value.toLocaleString("ja-JP")} pt</td>
-        <td>${percentages[index].toFixed(2)}%</td>
-        <td>${result.quantities[index].toLocaleString("ja-JP")} 個</td>
-        <td>${(value * result.quantities[index]).toLocaleString("ja-JP")} pt</td>
-      </tr>
-    `;
+  groupItems.forEach(function (item, coinIndex) {
+    const coin = item.point;
+    for (let sum = coin; sum <= limit; sum++) {
+      if (previousCoin[sum] !== -2) continue;
+      if (sum === coin || previousCoin[sum - coin] !== -2) {
+        previousCoin[sum] = coinIndex;
+        previousSum[sum] = sum - coin;
+      }
+    }
   });
 
-  html += `
-        </tbody>
-      </table>
-    </div>
+  let bestSum = 0;
+  let bestDiff = Math.abs(target);
+  for (let sum = 1; sum <= limit; sum++) {
+    if (previousCoin[sum] === -2) continue;
+    const diff = Math.abs(sum - target);
+    if (diff < bestDiff || (diff === bestDiff && sum > bestSum)) {
+      bestDiff = diff;
+      bestSum = sum;
+    }
+  }
 
-    <div class="calculator-summary">
-      <strong>合計ギフト個数：</strong>
-      ${result.totalCount.toLocaleString("ja-JP")} 個
-      <br>
+  let cursor = bestSum;
+  while (cursor > 0) {
+    const coinIndex = previousCoin[cursor];
+    if (coinIndex < 0) break;
+    const item = groupItems[coinIndex];
+    quantities.set(item, quantities.get(item) + 1);
+    cursor = previousSum[cursor];
+  }
 
-      <strong>合計ギフトポイント：</strong>
-      ${result.totalPoints.toLocaleString("ja-JP")} pt
-      <br>
+  // 同じポイント数が複数行ある場合は、個数を各行へ均等に振り分ける
+  const countsByPoint = new Map();
+  groupItems.forEach(item => {
+    countsByPoint.set(item.point, (countsByPoint.get(item.point) || 0) + (quantities.get(item) || 0));
+    quantities.set(item, 0);
+  });
+  const duplicateGroups = new Map();
+  groupItems.forEach(item => {
+    if (!duplicateGroups.has(item.point)) duplicateGroups.set(item.point, []);
+    duplicateGroups.get(item.point).push(item);
+  });
+  duplicateGroups.forEach(function (samePointItems, point) {
+    const totalForPoint = countsByPoint.get(point) || 0;
+    const each = Math.floor(totalForPoint / samePointItems.length);
+    let remainder = totalForPoint % samePointItems.length;
+    samePointItems.forEach(function (item) {
+      quantities.set(item, each + (remainder-- > 0 ? 1 : 0));
+    });
+  });
 
-      <strong>必要ギフトポイント：</strong>
-      ${requiredPoints.toLocaleString("ja-JP")} pt
-      <br>
-
-      <strong>目標との差：</strong>
-      ${(result.totalPoints - requiredPoints).toLocaleString("ja-JP")} pt
-    </div>
-  `;
-
-  giftCalculatorResults.innerHTML = html;
+  return {quantities, total: bestSum};
 }
 
-// ----------------------------------------
-// 割合を手動で編集する欄
-// ----------------------------------------
+function allocateGroup(items, target) {
+  if (!items.length || target <= 0) return 0;
+  const result = findNearestCombination(items, target);
+  items.forEach(item => {
+    item.quantity = result.quantities.get(item) || 0;
+  });
+  return result.total;
+}
 
-function renderPercentageEditor(values, percentages) {
+function calculateInitialGiftDistribution() {
+  try {
+    const target = getSupportTarget();
+    const items = classifyGiftItems(getGiftInputs());
+
+    const highItems = items.filter(item => item.category === "高額");
+    const middleItems = items.filter(item => item.category === "中額");
+    const lowItems = items.filter(item => item.category === "低額");
+
+    const highTarget = Math.round(target * 0.20);
+    const middleTarget = Math.round(target * 0.50);
+
+    const highTotal = allocateGroup(highItems, highTarget);
+    const middleTotal = allocateGroup(middleItems, middleTarget);
+    const lowTarget = Math.max(0, target - highTotal - middleTotal);
+    const lowTotal = allocateGroup(lowItems, lowTarget);
+
+    const totalPoints = highTotal + middleTotal + lowTotal;
+    const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
+    if (!totalCount) throw new Error("入力したギフトでは配分できませんでした。ポイント数を確認してください。");
+
+    confirmedTotalCount = totalCount;
+    confirmedInputSignature = giftSignature();
+
+    const percentages = items.map(item => item.quantity / totalCount * 100);
+    renderPercentageEditor(items, percentages);
+    renderGiftResults(items, percentages, totalPoints, target, {
+      highTarget, highTotal, middleTarget, middleTotal, lowTarget, lowTotal
+    });
+
+    recalculateGiftButton.disabled = false;
+    giftCalculatorStatus.textContent =
+      "配分計算が完了しました。割合を変更した場合は「再計算」を押してください。";
+    giftCalculatorStatus.className = "calculator-status";
+  } catch (error) {
+    giftCalculatorStatus.textContent = error.message;
+    giftCalculatorStatus.className = "calculator-status error";
+  }
+}
+
+function renderPercentageEditor(items, percentages) {
   percentageEditor.replaceChildren();
-
   const heading = document.createElement("h3");
   heading.textContent = "配分割合の調整";
   percentageEditor.appendChild(heading);
 
   const hint = document.createElement("p");
   hint.className = "hint";
-  hint.textContent =
-    "割合を自由に変更できます。合計を100%にしてから「再計算」を押してください。";
+  hint.textContent = "割合を変更できます。合計を100％にしてから「再計算」を押してください。0％も設定できます。";
   percentageEditor.appendChild(hint);
 
-  values.forEach(function (value, index) {
+  items.forEach(function (item, index) {
     const row = document.createElement("div");
     row.className = "percentage-row";
-
     const label = document.createElement("label");
-    label.textContent = value.toLocaleString("ja-JP") + " pt の割合";
-
+    label.textContent = item.point.toLocaleString("ja-JP") + " pt（" + item.category + "）";
     const input = document.createElement("input");
     input.type = "number";
     input.min = "0";
@@ -2231,164 +2169,115 @@ function renderPercentageEditor(values, percentages) {
     input.className = "percentage-input";
     input.dataset.percentageIndex = String(index);
     input.value = percentages[index].toFixed(2);
-
     input.addEventListener("input", function () {
-      giftCalculatorStatus.textContent =
-        "割合を変更しました。「再計算」を押すと個数に反映されます。";
-
+      giftCalculatorStatus.textContent = "割合を変更しました。合計を100％にして「再計算」を押してください。";
       giftCalculatorStatus.className = "calculator-status";
     });
-
     row.append(label, input);
     percentageEditor.appendChild(row);
   });
 }
 
-// ----------------------------------------
-// 手動編集された割合を取得
-// ----------------------------------------
-
 function readPercentages() {
-  const inputs = Array.from(
-    percentageEditor.querySelectorAll("input[data-percentage-index]")
-  );
-
+  const inputs = Array.from(percentageEditor.querySelectorAll("input[data-percentage-index]"));
   const percentages = inputs.map(function (input) {
     const value = Number(input.value);
-
     if (!Number.isFinite(value) || value < 0 || value > 100) {
-      throw new Error("割合は0〜100%で入力してください。");
+      throw new Error("割合は0〜100％で入力してください。");
     }
-
     return value;
   });
-
-  const total = percentages.reduce(function (sum, value) {
-    return sum + value;
-  }, 0);
-
+  const total = percentages.reduce((sum, value) => sum + value, 0);
   if (Math.abs(total - 100) > 0.01) {
-    throw new Error("割合の合計を100%にしてください。");
+    throw new Error("割合の合計を100％にしてください。現在は" + total.toFixed(2) + "％です。");
   }
-
   return percentages;
 }
 
-// ----------------------------------------
-// 「配分計算」ボタン
-// ----------------------------------------
+function allocateByPercentages(items, percentages, totalCount) {
+  const raw = percentages.map(value => totalCount * value / 100);
+  const counts = raw.map(value => Math.floor(value));
+  let remaining = totalCount - counts.reduce((sum, value) => sum + value, 0);
+  const order = raw.map((value, index) => ({
+    index, fraction: value - Math.floor(value)
+  })).sort((a, b) => b.fraction - a.fraction || a.index - b.index);
 
-function calculateInitialGiftDistribution() {
-  try {
-    const values = getGiftInputs();
-    const supportTarget = getSupportTarget();
-    const requiredPoints = Math.ceil(supportTarget / 3);
-
-    // 低ポイントのギフトほど高い割合を割り当てる
-    const percentages = calculateRecommendedPercentages(values);
-
-    // 割合に応じた平均ポイント数を求める
-    const averagePoints = values.reduce(function (sum, value, index) {
-      return sum + value * percentages[index] / 100;
-    }, 0);
-
-    // 必要ポイントに届くよう、合計個数を切り上げる
-    const totalCount = Math.max(
-      1,
-      Math.ceil(requiredPoints / averagePoints)
-    );
-
-    const result = allocateByPercentages(
-      values,
-      percentages,
-      totalCount
-    );
-
-    confirmedTotalCount = totalCount;
-    confirmedInputSignature = giftSignature();
-    currentGiftValues = values.slice();
-
-    renderPercentageEditor(values, percentages);
-    renderGiftResults(values, percentages, result, requiredPoints);
-
-    recalculateGiftButton.disabled = false;
-
-    giftCalculatorStatus.textContent =
-      "配分計算が完了しました。割合を変更した場合は「再計算」を押してください。";
-
-    giftCalculatorStatus.className = "calculator-status";
-
-  } catch (error) {
-    giftCalculatorStatus.textContent = error.message;
-    giftCalculatorStatus.className = "calculator-status error";
-  }
+  for (let i = 0; i < remaining; i++) counts[order[i].index]++;
+  items.forEach((item, index) => { item.quantity = counts[index]; });
+  return items.reduce((sum, item) => sum + item.point * item.quantity, 0);
 }
 
-// ----------------------------------------
-// 「再計算」ボタン
-// 割合は変更せず、個数だけを計算し直す
-// ----------------------------------------
+function renderGiftResults(items, percentages, totalPoints, target, breakdown) {
+  items.forEach(function (item, index) {
+    const row = item.rowItem;
+    row.percent.textContent = percentages[index].toFixed(2) + "%";
+    row.quantity.textContent = item.quantity.toLocaleString("ja-JP") + " 個";
+    row.subtotal.textContent = formatPoints(item.point * item.quantity);
+    row.category = item.category;
+  });
+
+  const totalCount = items.reduce((sum, item) => sum + item.quantity, 0);
+  let html = `
+    <h3>計算結果</h3>
+    <div class="calculator-summary">
+      <strong>高額ギフト：</strong>${formatPoints(breakdown ? breakdown.highTotal : 0)}
+      （目安 ${formatPoints(breakdown ? breakdown.highTarget : 0)}）<br>
+      <strong>中額ギフト：</strong>${formatPoints(breakdown ? breakdown.middleTotal : 0)}
+      （目安 ${formatPoints(breakdown ? breakdown.middleTarget : 0)}）<br>
+      <strong>低額ギフト：</strong>${formatPoints(breakdown ? breakdown.lowTotal : 0)}
+      （残額目安 ${formatPoints(breakdown ? breakdown.lowTarget : 0)}）<br>
+      <strong>合計ギフト個数：</strong>${totalCount.toLocaleString("ja-JP")} 個<br>
+      <strong>合計ギフトポイント：</strong>${formatPoints(totalPoints)}<br>
+      <strong>目標ポイント：</strong>${formatPoints(target)}<br>
+      <strong>目標との差：</strong>${(totalPoints - target >= 0 ? "+" : "") + (totalPoints - target).toLocaleString("ja-JP")} pt
+    </div>
+    <div class="calculator-results">
+      <table>
+        <thead><tr><th>分類</th><th>ギフト</th><th>割合</th><th>個数</th><th>小計</th></tr></thead>
+        <tbody>
+  `;
+  items.forEach(function (item, index) {
+    html += `<tr>
+      <td>${item.category}</td>
+      <td>${item.point.toLocaleString("ja-JP")} pt</td>
+      <td>${percentages[index].toFixed(2)}%</td>
+      <td>${item.quantity.toLocaleString("ja-JP")} 個</td>
+      <td>${formatPoints(item.point * item.quantity)}</td>
+    </tr>`;
+  });
+  html += "</tbody></table></div>";
+  giftCalculatorResults.innerHTML = html;
+}
 
 function recalculateGiftDistribution() {
   try {
-    if (!confirmedInputSignature) {
-      throw new Error("先に「配分計算」を押してください。");
-    }
-
+    if (!confirmedInputSignature) throw new Error("先に「配分計算」を押してください。");
     if (giftSignature() !== confirmedInputSignature) {
-      throw new Error(
-        "ギフトポイントまたは目標応援ポイントが変更されています。先に「配分計算」を押してください。"
-      );
+      throw new Error("ギフトポイントまたは目標応援ポイントが変更されています。先に「配分計算」を押してください。");
     }
 
-    const values = getGiftInputs();
-    const supportTarget = getSupportTarget();
-    const requiredPoints = Math.ceil(supportTarget / 3);
-
-    // 手動で設定した割合をそのまま取得
+    const items = classifyGiftItems(getGiftInputs());
     const percentages = readPercentages();
+    const totalPoints = allocateByPercentages(items, percentages, confirmedTotalCount);
+    const target = getSupportTarget();
 
-    // 割合はそのまま、個数だけ再計算
-    const result = allocateByPercentages(
-      values,
-      percentages,
-      confirmedTotalCount
-    );
-
-    renderGiftResults(values, percentages, result, requiredPoints);
-
+    renderGiftResults(items, percentages, totalPoints, target, null);
     giftCalculatorStatus.textContent =
-      "再計算しました。設定した割合は変更していません。";
-
+      "再計算しました。指定した割合を維持し、合計個数" + confirmedTotalCount + "個で調整しました。";
     giftCalculatorStatus.className = "calculator-status";
-
   } catch (error) {
     giftCalculatorStatus.textContent = error.message;
     giftCalculatorStatus.className = "calculator-status error";
   }
 }
 
-// ----------------------------------------
-// ボタンの動作を設定
-// ----------------------------------------
-
 addGiftInputButton.addEventListener("click", addGiftRow);
+calculateGiftButton.addEventListener("click", calculateInitialGiftDistribution);
+recalculateGiftButton.addEventListener("click", recalculateGiftDistribution);
 
-calculateGiftButton.addEventListener(
-  "click",
-  calculateInitialGiftDistribution
-);
-
-recalculateGiftButton.addEventListener(
-  "click",
-  recalculateGiftDistribution
-);
-
-// 初期表示：入力欄を3つ用意
 addGiftRow();
 addGiftRow();
 addGiftRow();
-
 updateRequiredGiftPoints();
 
   applyImageAdjustments();
