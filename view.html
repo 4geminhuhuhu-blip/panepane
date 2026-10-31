@@ -245,20 +245,61 @@
     }
 
     .panel-item {
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
       font-size: clamp(11px, 2.5vw, 17px);
-      font-weight: bold;
+      font-weight: normal;
       line-height: 1.3;
       color: #485249;
     }
 
+    /* 画像の色に左右されず文字を読めるよう、文字ごとに淡い台紙を敷く */
+    .panel-item,
     .panel-detail {
-      font-size: clamp(9px, 2vw, 14px);
-      line-height: 1.35;
-      color: #777a70;
+      width: calc(100% + 6px);
+      padding: 5px 4px;
+      border-radius: 5px;
+      background: rgba(243, 240, 232, .94);
+      box-shadow: 0 1px 3px rgba(45, 42, 34, .08);
+      overflow-wrap: anywhere;
+      text-shadow: none;
     }
 
-    .panel-detail span {
-      font-weight: bold;
+    .panel-detail {
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(9px, 2vw, 14px);
+      line-height: 1.25;
+      color: #777a70;
+      font-weight: 600;
+    }
+
+    .panel-detail.current-detail {
+      padding-top: 6px;
+      padding-bottom: 6px;
+      background: rgba(232, 225, 213, .97);
+      color: #424841;
+      font-size: clamp(17px, 3.1vw, 25px);
+      line-height: 1.15;
+      font-weight: 800;
+    }
+
+    .panel-detail.current-detail .detail-label {
+      display: block;
+      margin-bottom: 2px;
+      color: #85877f;
+      font-size: .58em;
+      font-weight: 700;
+    }
+
+    .panel-detail.current-detail .detail-value {
+      display: block;
+      color: #424841;
+      font-size: 1em;
+      font-weight: 800;
+    }
+
+    .panel-detail .detail-label,
+    .panel-detail .detail-value {
+      font-weight: 700;
     }
 
     /* 扉が開くアニメーション */
@@ -936,24 +977,28 @@
       item.textContent = panel.condition_text || "";
 
       const target = document.createElement("div");
-      target.className = "panel-detail";
+      target.className = "panel-detail target-detail";
 
       const targetLabel = document.createElement("span");
+      targetLabel.className = "detail-label";
       targetLabel.textContent = "目標：";
 
       const targetValue = document.createElement("span");
+      targetValue.className = "detail-value";
       targetValue.textContent = panel.target_value || "";
 
       target.appendChild(targetLabel);
       target.appendChild(targetValue);
 
       const current = document.createElement("div");
-      current.className = "panel-detail";
+      current.className = "panel-detail current-detail";
 
       const currentLabel = document.createElement("span");
-      currentLabel.textContent = "あと：";
+      currentLabel.className = "detail-label";
+      currentLabel.textContent = "あと";
 
       const currentValue = document.createElement("span");
+      currentValue.className = "detail-value";
       currentValue.textContent = panel.current_value || "";
 
       current.appendChild(currentLabel);
