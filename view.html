@@ -156,8 +156,8 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      align-items: stretch;
-      gap: 3px;
+      align-items: center;
+      gap: 5px;
       padding: clamp(3px, 1vw, 8px);
       text-align: center;
       overflow: hidden;
@@ -168,82 +168,6 @@
       color: var(--ink);
       border: 1px solid rgba(107, 111, 98, .22);
       isolation: isolate;
-    }
-
-    /* 上の枠：項目と目標 */
-    .panel-top {
-      position: relative;
-      z-index: 2;
-      width: 100%;
-      min-width: 0;
-      padding: clamp(3px, .7vw, 7px);
-      border-radius: 5px;
-      background: rgba(243, 240, 232, .96);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 3px;
-    }
-
-    /* 項目：はなぞめフォント */
-    .panel-item {
-      width: 100%;
-      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
-      font-size: clamp(11px, 2.5vw, 17px);
-      font-weight: normal;
-      line-height: 1.3;
-      color: #485249;
-    }
-
-    /* 目標：ゴシック体・小さめ */
-    .panel-target {
-      width: 100%;
-      font-family: "Yu Gothic", "Meiryo", sans-serif;
-      font-size: clamp(8px, 1.8vw, 12px);
-      line-height: 1.25;
-      color: #777a70;
-      font-weight: normal;
-    }
-
-    .panel-target span {
-      font-weight: bold;
-    }
-
-    /* 下の枠：あと */
-    .panel-bottom {
-      position: relative;
-      z-index: 2;
-      width: 100%;
-      min-width: 0;
-      padding: clamp(3px, .8vw, 8px);
-      border-radius: 5px;
-      background: rgba(232, 225, 213, .97);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 1px;
-    }
-
-    /* あと：ゴシック体 */
-    .panel-current-label {
-      width: 100%;
-      font-family: "Yu Gothic", "Meiryo", sans-serif;
-      font-size: clamp(8px, 1.8vw, 12px);
-      line-height: 1.2;
-      color: #777a70;
-      font-weight: bold;
-    }
-
-    /* あとの数値：大きく表示 */
-    .panel-current-value {
-      width: 100%;
-      font-family: "Yu Gothic", "Meiryo", sans-serif;
-      font-size: clamp(15px, 3.5vw, 25px);
-      line-height: 1.15;
-      font-weight: bold;
-      color: #424841;
     }
 
     /* 扉の左右パーツ */
@@ -312,6 +236,31 @@
       left: 7px;
     }
 
+    /* パネル内の文字 */
+    .panel-item,
+    .panel-detail {
+      position: relative;
+      z-index: 2;
+      width: 100%;
+    }
+
+    .panel-item {
+      font-size: clamp(11px, 2.5vw, 17px);
+      font-weight: bold;
+      line-height: 1.3;
+      color: #485249;
+    }
+
+    .panel-detail {
+      font-size: clamp(9px, 2vw, 14px);
+      line-height: 1.35;
+      color: #777a70;
+    }
+
+    .panel-detail span {
+      font-weight: bold;
+    }
+
     /* 扉が開くアニメーション */
     .panel.opening {
       perspective: 700px;
@@ -374,6 +323,76 @@
       box-shadow:
         inset 0 0 0 2px rgba(255,255,255,.75),
         0 0 10px rgba(237,150,61,.55);
+    }
+
+    /* パネパン透かし：立ち絵とパネルの上に薄く重ねる */
+    .watermark {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      overflow: hidden;
+      pointer-events: none;
+      user-select: none;
+      opacity: .42;
+    }
+
+    .watermark::before,
+    .watermark::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 145%;
+      height: 1px;
+      background: rgba(255, 255, 255, .78);
+      box-shadow: 0 1px 1px rgba(80, 85, 75, .10);
+      transform-origin: center;
+    }
+
+    .watermark::before {
+      transform: translate(-50%, -50%) rotate(35deg);
+    }
+
+    .watermark::after {
+      transform: translate(-50%, -50%) rotate(-35deg);
+    }
+
+    .watermark-label {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) rotate(-18deg);
+      padding: 5px 14px;
+      border: 1px solid rgba(255, 255, 255, .65);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .16);
+      color: rgba(255, 255, 255, .88);
+      font-size: clamp(14px, 4vw, 28px);
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-shadow: 0 1px 3px rgba(50, 55, 48, .28);
+      white-space: nowrap;
+    }
+
+    .thank-you-message {
+      margin: 18px 0 8px;
+      padding: 18px 20px;
+      border: 1px solid #d9ded4;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, .72);
+      color: #596457;
+      text-align: center;
+      line-height: 1.75;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .thank-you-title {
+      margin: 0 0 8px;
+      color: #718675;
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: .08em;
     }
 
     /* 画像保存ボタン */
@@ -448,19 +467,13 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-
-      /* html2canvas対策：グラデーションを使わず単色にする */
-      background-color: #f3f0e8;
-      background-image: none !important;
-
+      background:
+        radial-gradient(circle at 8% 5%, #fffdf7 0, transparent 30%),
+        radial-gradient(circle at 95% 95%, #e8ede5 0, transparent 35%),
+        #f3f0e8;
       color: #424841;
       font-family: "Yu Gothic", "Meiryo", sans-serif;
     }
-
-/* 保存画像内のすべてのグラデーションを無効化 */
-.export-card * {
-  background-image: none !important;
-}
 
     .export-decoration {
       position: absolute;
@@ -542,27 +555,14 @@
       isolation: isolate;
     }
 
-    .export-card .export-progress-bar {
-      background-color: #879b89 !important;
-      background-image: none !important;
+    .export-board .watermark-label {
+      font-size: 34px;
+      padding: 8px 22px;
     }
 
-    /* 保存画像内の扉も単色にする */
-    .export-card .door-left,
-    .export-card .door-right {
-      background-color: #eeeae1 !important;
-      background-image: none !important;
-    }
-    
-    /* 保存画像でも閲覧ページと同じパネル表示 */
     .export-board .panel {
       padding: 8px;
       gap: 6px;
-    }
-
-    .export-board .panel-top {
-      padding: 7px;
-      gap: 4px;
     }
 
     .export-board .panel-item {
@@ -570,24 +570,9 @@
       line-height: 1.3;
     }
 
-    .export-board .panel-target {
+    .export-board .panel-detail {
       font-size: 13px;
       line-height: 1.3;
-    }
-
-    .export-board .panel-bottom {
-      padding: 8px;
-      gap: 2px;
-    }
-
-    .export-board .panel-current-label {
-      font-size: 13px;
-      line-height: 1.2;
-    }
-
-    .export-board .panel-current-value {
-      font-size: 25px;
-      line-height: 1.15;
     }
 
     .export-board .panel.featured,
@@ -638,37 +623,24 @@
         padding: 2px;
       }
 
-      .panel-top {
-        padding: 2px;
-        gap: 2px;
-      }
-
       .panel-item {
         font-size: clamp(9px, 2.6vw, 13px);
       }
 
-      .panel-target {
-        font-size: clamp(7px, 1.8vw, 10px);
-        line-height: 1.15;
-      }
-
-      .panel-bottom {
-        padding: 2px;
-        gap: 1px;
-      }
-
-      .panel-current-label {
-        font-size: clamp(7px, 1.8vw, 10px);
-      }
-
-      .panel-current-value {
-        font-size: clamp(12px, 3.5vw, 19px);
-        line-height: 1.1;
+      .panel-detail {
+        font-size: clamp(8px, 2vw, 11px);
+        line-height: 1.2;
       }
 
       .panel.featured,
       .panel.open.featured {
         border-width: 3px;
+      }
+
+      .thank-you-message {
+        margin-top: 14px;
+        padding: 15px;
+        font-size: 14px;
       }
 
       .save-image-button {
@@ -682,29 +654,12 @@
         padding: 1px;
       }
 
-      .panel-top {
-        padding: 1px;
-        gap: 1px;
-      }
-
       .panel-item {
         font-size: 9px;
       }
 
-      .panel-target {
+      .panel-detail {
         font-size: 7px;
-      }
-
-      .panel-bottom {
-        padding: 1px;
-      }
-
-      .panel-current-label {
-        font-size: 7px;
-      }
-
-      .panel-current-value {
-        font-size: 12px;
       }
     }
 
@@ -740,6 +695,15 @@
       </div>
 
       <div id="panels" class="panels"></div>
+
+      <div id="watermark" class="watermark" aria-hidden="true">
+        <span class="watermark-label">パネパン</span>
+      </div>
+    </div>
+
+    <div id="thankYouMessage" class="thank-you-message hidden" aria-live="polite">
+      <div class="thank-you-title">THANK YOU</div>
+      <div id="thankYouMessageText"></div>
     </div>
 
     <div id="message" class="message">
@@ -801,6 +765,9 @@
     const board = document.getElementById("board");
     const panelsEl = document.getElementById("panels");
     const imageEl = document.getElementById("characterImage");
+    const watermarkEl = document.getElementById("watermark");
+    const thankYouMessageEl = document.getElementById("thankYouMessage");
+    const thankYouMessageTextEl = document.getElementById("thankYouMessageText");
     const messageEl = document.getElementById("message");
     const updateNote = document.getElementById("updateNote");
 
@@ -832,9 +799,33 @@
     function showError(message) {
       board.classList.add("hidden");
       saveImageArea.classList.add("hidden");
+      thankYouMessageEl.classList.add("hidden");
       messageEl.textContent = message;
       messageEl.classList.remove("hidden");
       updateNote.classList.add("hidden");
+    }
+
+    function setPublicExtras(challenge) {
+      // DB値がbooleanでない場合も、初期設定に合わせて透かしをONにする
+      const showWatermark =
+        typeof challenge.show_watermark === "boolean"
+          ? challenge.show_watermark
+          : true;
+
+      watermarkEl.classList.toggle("hidden", !showWatermark);
+
+      const thankYouMessage =
+        typeof challenge.thank_you_message === "string"
+          ? challenge.thank_you_message.trim()
+          : "";
+
+      if (challenge.is_ended === true && thankYouMessage) {
+        thankYouMessageTextEl.textContent = thankYouMessage;
+        thankYouMessageEl.classList.remove("hidden");
+      } else {
+        thankYouMessageTextEl.textContent = "";
+        thankYouMessageEl.classList.add("hidden");
+      }
     }
 
     function setStatus(challenge) {
@@ -913,7 +904,7 @@
           leftDoor.remove();
           rightDoor.remove();
           cell.querySelectorAll(
-            ".panel-top, .panel-bottom"
+            ".panel-item, .panel-detail"
           ).forEach(el => el.remove());
         };
 
@@ -936,16 +927,12 @@
         return cell;
       }
 
-      // 上の枠：項目と目標
-      const top = document.createElement("div");
-      top.className = "panel-top";
-
       const item = document.createElement("div");
       item.className = "panel-item";
       item.textContent = panel.condition_text || "";
 
       const target = document.createElement("div");
-      target.className = "panel-target";
+      target.className = "panel-detail";
 
       const targetLabel = document.createElement("span");
       targetLabel.textContent = "目標：";
@@ -956,31 +943,25 @@
       target.appendChild(targetLabel);
       target.appendChild(targetValue);
 
-      top.appendChild(item);
-      top.appendChild(target);
+      const current = document.createElement("div");
+      current.className = "panel-detail";
 
-      // 下の枠：あと
-      const bottom = document.createElement("div");
-      bottom.className = "panel-bottom";
+      const currentLabel = document.createElement("span");
+      currentLabel.textContent = "あと：";
 
-      const currentLabel = document.createElement("div");
-      currentLabel.className = "panel-current-label";
-      currentLabel.textContent = "あと";
-
-      const currentValue = document.createElement("div");
-      currentValue.className = "panel-current-value";
+      const currentValue = document.createElement("span");
       currentValue.textContent = panel.current_value || "";
 
-      bottom.appendChild(currentLabel);
-      bottom.appendChild(currentValue);
+      current.appendChild(currentLabel);
+      current.appendChild(currentValue);
 
-      cell.appendChild(top);
-      cell.appendChild(bottom);
+      cell.appendChild(item);
+      cell.appendChild(target);
+      cell.appendChild(current);
 
       return cell;
     }
-
-    function renderPanels(
+        function renderPanels(
       panels,
       rows,
       columns,
@@ -1067,6 +1048,17 @@
       boardClone.style.height = "850px";
       boardClone.style.aspectRatio = "1 / 1";
 
+      // 保存画像にも画面と同じ透かし設定を反映
+      const exportWatermark = boardClone.querySelector(".watermark");
+      const showWatermark =
+        typeof challenge.show_watermark === "boolean"
+          ? challenge.show_watermark
+          : true;
+
+      if (exportWatermark) {
+        exportWatermark.classList.toggle("hidden", !showWatermark);
+      }
+
       // 立ち絵の位置・拡大率を保存画像用に調整
       const screenBoardWidth = board.getBoundingClientRect().width;
       const ratio = screenBoardWidth > 0
@@ -1076,21 +1068,15 @@
       const exportCharacterImage =
         boardClone.querySelector(".character img");
 
-    if (exportCharacterImage) {
-      const x = Number(challenge.image_position_x) || 0;
-      const y = Number(challenge.image_position_y) || 0;
-      const scale = (Number(challenge.image_scale) || 100) / 100;
+      if (exportCharacterImage) {
+        const x = Number(challenge.image_position_x) || 0;
+        const y = Number(challenge.image_position_y) || 0;
+        const scale = (Number(challenge.image_scale) || 100) / 100;
 
-      // 立ち絵の縦横比を維持する
-      exportCharacterImage.style.width = "auto";
-      exportCharacterImage.style.height = "auto";
-      exportCharacterImage.style.maxWidth = "100%";
-      exportCharacterImage.style.maxHeight = "100%";
-      exportCharacterImage.style.objectFit = "contain";
+        exportCharacterImage.style.transform =
+          `translate(${x * ratio}px, ${y * ratio}px) scale(${scale})`;
+      }
 
-      exportCharacterImage.style.transform =
-        `translate(${x * ratio}px, ${y * ratio}px) scale(${scale})`;
-    }
       // APIの開閉状態を基準に保存用パネルを確定する
       const clonedPanels = boardClone.querySelectorAll(".panel");
 
@@ -1148,7 +1134,6 @@
 
       try {
         // 扉の開閉アニメーション中なら、終了してから保存する
-        // 保存画像で扉が中途半端な状態になるのを防ぐ
         const waitStart = Date.now();
 
         while (
@@ -1174,55 +1159,22 @@
           });
         }
 
-        // はなぞめフォントの読み込み完了を待つ
+        // フォントの読み込み完了を待つ
         if (document.fonts && document.fonts.ready) {
           await document.fonts.ready;
         }
 
         await new Promise(resolve => requestAnimationFrame(resolve));
 
-    const canvas = await html2canvas(exportCard, {
-      backgroundColor: "#f3f0e8",
-      scale: 1,
-      width: 1080,
-      height: 1080,
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-
-      onclone: (clonedDocument) => {
-         const clonedCard =
-          clonedDocument.getElementById("exportCard");
-
-        if (!clonedCard) return;
-
-        // 保存画像用の複製内だけ、グラデーションと動きを無効化
-        clonedCard.style.backgroundImage = "none";
-
-        clonedCard.querySelectorAll("*").forEach((element) => {
-          element.style.backgroundImage = "none";
-          element.style.animation = "none";
-          element.style.transition = "none";
+        const canvas = await html2canvas(exportCard, {
+          backgroundColor: "#f3f0e8",
+          scale: 1,
+          width: 1080,
+          height: 1080,
+          useCORS: true,
+          allowTaint: false,
+          logging: false
         });
-
-         // 保存画像の背景色を明示
-         clonedCard.style.backgroundColor = "#f3f0e8";
-
-        // 扉を単色にする
-        clonedCard.querySelectorAll(
-          ".door-left, .door-right"
-        ).forEach((door) => {
-          door.style.background = "#eeeae1";
-        });
-
-        // 進捗バーを単色にする
-        clonedCard.querySelectorAll(
-          ".export-progress-bar"
-        ).forEach((bar) => {
-          bar.style.background = "#879b89";
-        });
-      }
-    });
 
         const blob = await new Promise((resolve) => {
           canvas.toBlob(resolve, "image/png");
@@ -1337,6 +1289,7 @@
         );
 
         setStatus(challenge);
+        setPublicExtras(challenge);
 
         board.classList.remove("hidden");
         messageEl.classList.add("hidden");
@@ -1348,6 +1301,7 @@
           stopAutoUpdate();
           updateNote.textContent = "チャレンジは終了しました。";
         }
+
       } catch (error) {
         console.error(error);
 
@@ -1363,12 +1317,12 @@
           updateNote.textContent =
             "通信を再試行しています...";
         }
+
       } finally {
         isLoading = false;
       }
     }
-
-    function startAutoUpdate() {
+        function startAutoUpdate() {
       stopAutoUpdate();
 
       if (isFinished) {
