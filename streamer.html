@@ -352,10 +352,12 @@
     .gift-target-grid label {margin-top:8px;}
     .gift-target-display {min-height:45px;padding:10px;border:1px solid #cbd5e1;border-radius:7px;background:#f8fafc;font-size:20px;font-weight:700;text-align:center;}
     .gift-table-wrap {width:100%;overflow-x:auto;}
-    .gift-table-head,.calculator-gift-row {display:grid;grid-template-columns:minmax(110px,1.3fr) minmax(75px,.7fr) minmax(80px,.8fr) minmax(100px,1fr) 64px;gap:8px;align-items:center;min-width:580px;}
+    .gift-table-head,.calculator-gift-row {display:grid;grid-template-columns:minmax(110px,1.2fr) minmax(82px,.75fr) minmax(80px,.8fr) minmax(100px,1fr) 58px;gap:8px;align-items:center;min-width:580px;}
     .gift-table-head {font-weight:700;text-align:center;margin:14px 0 6px;}
     .calculator-gift-row {margin:8px 0;padding:4px 0;}
     .calculator-gift-row input {min-width:0;margin:0;}
+    .gift-percent-input {max-width:100%;text-align:center;}
+    .gift-inline-cell {padding:10px 4px;border:1px solid #dbe2ed;border-radius:7px;text-align:center;min-height:42px;background:#f8fafc;font-variant-numeric:tabular-nums;}
     .gift-cell {padding:10px 5px;border:1px solid #dbe2ed;border-radius:7px;text-align:center;min-height:42px;background:#fff;}
     .gift-category {display:block;font-size:11px;color:#64748b;}
     .calculator-gift-row button {padding:10px 8px;white-space:nowrap;}
@@ -576,22 +578,21 @@
           <div>
             <label>配分対象ポイント</label>
             <div class="gift-target-display" id="required-gift-points">0 pt</div>
-            <p class="hint">高額20％・中額50％・低額は残額を目安に配分します。</p>
+            <p class="hint">目標応援ポイントの3分の1を配分対象にします。</p>
           </div>
         </div>
 
         <h3>使用するギフト</h3>
         <p class="hint">
-          ギフトのポイント数を入力してください。入力したポイントを高い順に並べ、
-          上位30％を高額、中間を中額、下位30％を低額として自動分類します。
+          ギフトのポイント数を入力してください。低〜中ポイントを中心に、高ポイントのギフトも少し混ぜる割合を自動提案します。割合は計算後に自由に調整できます。
         </p>
 
         <div class="gift-table-wrap">
           <div class="gift-table-head">
-            <span>ギフト種類（pt）</span>
+            <span>ギフトポイント</span>
             <span>割合</span>
             <span>必要個数</span>
-            <span>ギフトポイント</span>
+            <span>小計ポイント</span>
             <span></span>
           </div>
           <div id="gift-input-list"></div>
@@ -602,9 +603,9 @@
           <button id="calculate-gift-distribution" type="button">配分計算</button>
         </div>
 
-        <div id="gift-percentage-editor"></div>
+        <p class="hint">割合は全ギフト合計で100%にしてください。0%にすると、そのギフトは配分対象外になります。</p>
         <div class="actions">
-          <button id="recalculate-gift-distribution" type="button" disabled>再計算</button>
+          <button id="recalculate-gift-distribution" type="button" disabled>割合を反映して再計算</button>
         </div>
 
         <p id="gift-calculator-status" class="calculator-status" role="status" aria-live="polite"></p>
@@ -1925,8 +1926,22 @@ function addGiftRow() {
   input.type = "number";
   input.min = "1";
   input.step = "1";
-  input.placeholder = "ギフトポイント数（例：100）";
+  input.placeholder = "例：100";
   input.setAttribute("aria-label", "ギフトポイント数");
+  const percentage = document.createElement("input");
+  percentage.type = "number";
+  percentage.min = "0";
+  percentage.max = "100";
+  percentage.step = "0.01";
+  percentage.placeholder = "割合";
+  percentage.className = "gift-percent-input";
+  percentage.setAttribute("aria-label", "配分割合（%）");
+  const countCell = document.createElement("div");
+  countCell.className = "gift-inline-cell gift-count";
+  countCell.textContent = "—";
+  const subtotalCell = document.createElement("div");
+  subtotalCell.className = "gift-inline-cell gift-subtotal";
+  subtotalCell.textContent = "—";
   const remove = document.createElement("button");
   remove.type = "button";
   remove.className = "secondary-button";
@@ -1938,9 +1953,13 @@ function addGiftRow() {
     updateGiftAddButton();
   });
   input.addEventListener("input", markGiftInputsChanged);
-  row.append(input, remove);
+  percentage.addEventListener("input", () => {
+    giftCalculatorStatus.textContent = "割合を変更しました。「割合を反映して再計算」を押してください。";
+    giftCalculatorStatus.className = "calculator-status";
+  });
+  row.append(input, percentage, countCell, subtotalCell, remove);
   giftInputList.appendChild(row);
-  giftRows.push({ row, input });
+  giftRows.push({ row, input, percentage, countCell, subtotalCell });
   updateGiftAddButton();
 }
 function updateGiftAddButton() {
@@ -1958,7 +1977,7 @@ function getGiftInputs() {
     if (!Number.isSafeInteger(point) || point <= 0) {
       throw new Error("ギフトポイントは1以上の整数で入力してください。");
     }
-    values.push({ point, inputIndex: index });
+    values.push({ point, inputIndex: index, row: item });
   });
   if (!values.length) throw new Error("ギフトポイントを1種類以上入力してください。");
   return values;
@@ -1971,168 +1990,125 @@ function getSupportTarget() {
   return target;
 }
 function giftSignature() {
-  return JSON.stringify({
-    target: giftTargetInput.value,
-    values: giftRows.map(x => x.input.value)
-  });
+  return JSON.stringify({ target: giftTargetInput.value, values: giftRows.map(x => x.input.value) });
 }
 function markGiftInputsChanged() {
   if (!confirmedInputSignature) return;
-  giftCalculatorStatus.textContent = "入力内容が変更されています。もう一度「配分計算」を押してください。";
+  giftCalculatorStatus.textContent = "目標ポイントまたはギフト入力が変更されています。「配分計算」を押し直してください。";
   giftCalculatorStatus.className = "calculator-status";
   recalculateGiftButton.disabled = true;
 }
-function classifyGiftGroups(items) {
-  const sorted = items.slice().sort((a, b) => b.point - a.point || a.inputIndex - b.inputIndex);
-  const highCount = Math.min(sorted.length, Math.ceil(sorted.length * 0.30));
-  const lowCount = Math.min(sorted.length - highCount, Math.ceil(sorted.length * 0.30));
-  return {
-    high: sorted.slice(0, highCount),
-    middle: sorted.slice(highCount, sorted.length - lowCount),
-    low: lowCount ? sorted.slice(sorted.length - lowCount) : []
-  };
+function makeDefaultPercentages(items) {
+  // 低〜中ポイントを中心にしつつ、低額だけに偏らないよう 1/√ポイント で重み付け
+  const weights = items.map(item => 1 / Math.sqrt(item.point));
+  const total = weights.reduce((a, b) => a + b, 0);
+  return weights.map(weight => weight / total * 100);
 }
-function makeDefaultPercentages(groups) {
-  const result = {};
-  Object.keys(groups).forEach(key => {
-    const n = groups[key].length;
-    result[key] = n ? groups[key].map(() => 100 / n) : [];
-  });
-  return result;
-}
-function allocateGroup(groupItems, groupBudget, percentages) {
-  if (!groupItems.length) {
-    return { quantities: [], points: 0, budget: 0, adjustmentCount: 0 };
-  }
-  const quantities = groupItems.map((item, i) =>
-    percentages[i] === 0 ? 0 : Math.floor((groupBudget * percentages[i] / 100) / item.point)
-  );
-  let points = quantities.reduce((sum, count, i) => sum + count * groupItems[i].point, 0);
-  let deficit = Math.max(0, groupBudget - points);
-  const eligible = groupItems
-    .map((item, i) => ({ ...item, i }))
-    .filter(x => percentages[x.i] > 0)
-    .sort((a, b) => b.point - a.point);
-  let adjustmentCount = 0;
-  if (deficit > 0 && eligible.length) {
-    const adjust = eligible[0];
-    const add = Math.ceil(deficit / adjust.point);
-    quantities[adjust.i] += add;
-    adjustmentCount = add;
-    points += add * adjust.point;
-  }
-  return { quantities, points, budget: groupBudget, adjustmentCount };
-}
-function readGroupPercentages() {
-  const result = { high: [], middle: [], low: [] };
-  Object.keys(result).forEach(key => {
-    const inputs = Array.from(percentageEditor.querySelectorAll(`[data-group="${key}"]`));
-    result[key] = inputs.map(input => {
-      const value = Number(input.value);
-      if (!Number.isFinite(value) || value < 0 || value > 100) {
-        throw new Error("割合は各グループ内で0〜100%にしてください。");
-      }
-      return value;
-    });
-    if (!inputs.length) return;
-    const total = result[key].reduce((a, b) => a + b, 0);
-    if (Math.abs(total - 100) > 0.01) {
-      throw new Error(`${GIFT_GROUP_NAMES[key]}の割合の合計を100%にしてください。`);
+function readPercentages(items) {
+  const values = items.map(item => {
+    const value = Number(item.row.percentage.value);
+    if (!Number.isFinite(value) || value < 0 || value > 100) {
+      throw new Error("割合は0〜100%の範囲で入力してください。");
     }
+    return value;
   });
-  return result;
+  const total = values.reduce((a, b) => a + b, 0);
+  if (Math.abs(total - 100) > 0.01) {
+    throw new Error(`割合の合計を100%にしてください（現在 ${total.toFixed(2)}%）。`);
+  }
+  return values;
 }
-function renderPercentageEditor(groups, percentages) {
-  percentageEditor.replaceChildren();
-  const heading = document.createElement("h3");
-  heading.textContent = "配分割合の調整";
-  percentageEditor.appendChild(heading);
-  const hint = document.createElement("p");
-  hint.className = "hint";
-  hint.textContent = "割合は各グループ内で編集できます。各グループの合計を100%にしてから「再計算」を押してください。0%にしたギフトには個数を割り当てません。";
-  percentageEditor.appendChild(hint);
-  Object.keys(groups).forEach(key => {
-    const items = groups[key];
-    if (!items.length) return;
-    const sub = document.createElement("h4");
-    sub.textContent = `${GIFT_GROUP_NAMES[key]}（担当 ${Math.round(GIFT_GROUP_RATES[key] * 100)}%）`;
-    percentageEditor.appendChild(sub);
-    items.forEach((item, i) => {
-      const row = document.createElement("div");
-      row.className = "percentage-row";
-      const label = document.createElement("label");
-      label.textContent = `${fmt(item.point)} pt の割合`;
-      const input = document.createElement("input");
-      input.type = "number";
-      input.min = "0";
-      input.max = "100";
-      input.step = "0.0001";
-      input.className = "percentage-input";
-      input.dataset.group = key;
-      input.value = percentages[key][i].toFixed(4);
-      input.addEventListener("input", () => {
-        giftCalculatorStatus.textContent = "割合を変更しました。「再計算」を押すと個数に反映されます。";
-        giftCalculatorStatus.className = "calculator-status";
-      });
-      row.append(label, input);
-      percentageEditor.appendChild(row);
-    });
-  });
+function allocateGiftCounts(items, percentages, target) {
+  const counts = items.map((item, i) => percentages[i] > 0
+    ? Math.floor((target * percentages[i] / 100) / item.point)
+    : 0);
+  let points = counts.reduce((sum, count, i) => sum + count * items[i].point, 0);
+  let deficit = Math.max(0, target - points);
+  // 割合から算出した個数を土台に、不足分を補う。
+  // 不足分が扱える大きさなら動的計画法で「目標以上となる最小ポイント」を厳密に探す。
+  if (deficit > 0) {
+    const eligible = items.map((item, i) => ({ item, i }))
+      .filter(x => percentages[x.i] > 0);
+    if (!eligible.length) throw new Error("割合がすべて0%です。1種類以上に割合を設定してください。");
+    const minPoint = Math.min(...eligible.map(x => x.item.point));
+    const limit = deficit + minPoint - 1;
+    if (limit <= 3000000) {
+      const INF = 0x7fffffff;
+      const best = new Int32Array(limit + 1);
+      const previous = new Int16Array(limit + 1);
+      best.fill(INF);
+      previous.fill(-1);
+      best[0] = 0;
+      for (let sum = 1; sum <= limit; sum++) {
+        for (const entry of eligible) {
+          const point = entry.item.point;
+          if (point <= sum && best[sum - point] !== INF && best[sum - point] + 1 < best[sum]) {
+            best[sum] = best[sum - point] + 1;
+            previous[sum] = entry.i;
+          }
+        }
+      }
+      let addPoints = deficit;
+      while (addPoints <= limit && best[addPoints] === INF) addPoints++;
+      if (addPoints > limit) throw new Error("配分を計算できませんでした。ギフトポイントを確認してください。");
+      let remaining = addPoints;
+      while (remaining > 0) {
+        const index = previous[remaining];
+        if (index < 0) throw new Error("配分の計算中にエラーが発生しました。");
+        counts[index]++;
+        remaining -= items[index].point;
+      }
+      points += addPoints;
+    } else {
+      // 非常に大きな目標ではメモリ負荷を避け、最大限不足分に近いギフトを追加する。
+      while (deficit > 0) {
+        const fitting = eligible.filter(x => x.item.point <= deficit)
+          .sort((a, b) => b.item.point - a.item.point);
+        const chosen = fitting[0] || eligible.slice().sort((a, b) => a.item.point - b.item.point)[0];
+        const add = fitting.length ? Math.max(1, Math.floor(deficit / chosen.item.point)) : 1;
+        counts[chosen.i] += add;
+        const added = chosen.item.point * add;
+        points += added;
+        deficit = Math.max(0, target - points);
+      }
+    }
+  }
+  return { counts, points };
 }
-function renderGiftResults(groups, percentages, results, target) {
-  let html = `<h3>計算結果</h3><div class="calculator-results"><table><thead><tr><th>分類</th><th>ギフトポイント</th><th>割合</th><th>必要個数</th><th>ギフトポイント小計</th></tr></thead><tbody>`;
+function renderGiftResults(items, percentages, allocation, target) {
   let totalCount = 0;
-  let totalPoints = 0;
-  Object.keys(groups).forEach(key => {
-    groups[key].forEach((item, i) => {
-      const count = results[key].quantities[i];
-      const subtotal = item.point * count;
-      totalCount += count;
-      totalPoints += subtotal;
-      html += `<tr><td>${GIFT_GROUP_NAMES[key]}</td><td>${fmt(item.point)} pt</td><td>${percentages[key][i].toFixed(4)}%</td><td>${fmt(count)} 個</td><td>${fmt(subtotal)} pt</td></tr>`;
-    });
-    html += `<tr><th colspan="4">${GIFT_GROUP_NAMES[key]} 小計</th><th>${fmt(results[key].points)} pt</th></tr>`;
+  items.forEach((item, i) => {
+    const count = allocation.counts[i];
+    const subtotal = item.point * count;
+    totalCount += count;
+    item.row.countCell.textContent = `${fmt(count)} 個`;
+    item.row.subtotalCell.textContent = `${fmt(subtotal)} pt`;
+    item.row.percentage.value = percentages[i].toFixed(2);
   });
-  html += `</tbody></table></div><div class="calculator-summary">
+  const totalPoints = allocation.points;
+  giftCalculatorResults.innerHTML = `<h3>計算結果</h3><div class="calculator-summary">
     <strong>配分対象ポイント：</strong>${fmt(target)} pt<br>
     <strong>合計ギフト個数：</strong>${fmt(totalCount)} 個<br>
     <strong>合計ギフトポイント：</strong>${fmt(totalPoints)} pt<br>
-    <strong>目標との差：</strong>${totalPoints >= target ? "+" : ""}${fmt(totalPoints - target)} pt
+    <strong>目標との差：</strong>+${fmt(totalPoints - target)} pt
   </div>`;
-  giftCalculatorResults.innerHTML = html;
 }
-function runGiftCalculation(percentages) {
+function calculateGiftDistribution(useEditedPercentages) {
   const target = Math.ceil(getSupportTarget() / 3);
-  const groups = currentGroups;
-  const results = {};
-  // ギフト種類が少なく一部グループが空の場合は、存在するグループ間で
-  // 20:50:30の比率を保ったまま配分対象ポイントを再配分する。
-  const activeKeys = Object.keys(groups).filter(key => groups[key].length > 0);
-  const activeRateTotal = activeKeys.reduce((sum, key) => sum + GIFT_GROUP_RATES[key], 0);
-  let assignedBudget = 0;
-  activeKeys.forEach((key, index) => {
-    const groupBudget = index === activeKeys.length - 1
-      ? target - assignedBudget
-      : Math.floor(target * GIFT_GROUP_RATES[key] / activeRateTotal);
-    assignedBudget += groupBudget;
-    results[key] = allocateGroup(groups[key], groupBudget, percentages[key]);
-  });
-  Object.keys(groups).filter(key => !groups[key].length).forEach(key => {
-    results[key] = { quantities: [], points: 0, budget: 0, adjustmentCount: 0 };
-  });
-  renderGiftResults(groups, percentages, results, target);
+  const items = getGiftInputs();
+  const percentages = useEditedPercentages
+    ? readPercentages(items)
+    : makeDefaultPercentages(items);
+  const allocation = allocateGiftCounts(items, percentages, target);
+  renderGiftResults(items, percentages, allocation, target);
+  return { target, items, percentages, allocation };
 }
 function calculateInitialGiftDistribution() {
   try {
-    const target = getSupportTarget();
-    const items = getGiftInputs();
-    currentGroups = classifyGiftGroups(items);
-    const percentages = makeDefaultPercentages(currentGroups);
-    renderPercentageEditor(currentGroups, percentages);
+    const result = calculateGiftDistribution(false);
     confirmedInputSignature = giftSignature();
-    runGiftCalculation(percentages);
     recalculateGiftButton.disabled = false;
-    giftCalculatorStatus.textContent = "配分計算が完了しました。割合を編集して「再計算」できます。";
+    giftCalculatorStatus.textContent = "初期配分を計算しました。割合を調整して再計算できます。";
     giftCalculatorStatus.className = "calculator-status";
   } catch (error) {
     giftCalculatorStatus.textContent = error.message;
@@ -2141,14 +2117,11 @@ function calculateInitialGiftDistribution() {
 }
 function recalculateGiftDistribution() {
   try {
-    if (!confirmedInputSignature || !currentGroups) {
-      throw new Error("先に「配分計算」を押してください。");
-    }
+    if (!confirmedInputSignature) throw new Error("先に「配分計算」を押してください。");
     if (giftSignature() !== confirmedInputSignature) {
       throw new Error("目標ポイントまたはギフト入力が変更されています。先に「配分計算」を押してください。");
     }
-    const percentages = readGroupPercentages();
-    runGiftCalculation(percentages);
+    calculateGiftDistribution(true);
     giftCalculatorStatus.textContent = "再計算しました。設定した割合を維持しています。";
     giftCalculatorStatus.className = "calculator-status";
   } catch (error) {
