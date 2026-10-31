@@ -98,7 +98,7 @@ export async function onRequest({ request, env }) {
 
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended,featured_panel_number"
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended,featured_panel_number,thank_you_message,show_watermark"
     );
 
     challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
@@ -185,6 +185,98 @@ export async function onRequest({ request, env }) {
         }, 404);
       }
 
+      // お礼メッセージ・透かし設定は、チャレンジ終了後も変更可能
+      if (body.action === "update-public-settings") {
+        const updateData = {};
+
+        if (Object.prototype.hasOwnProperty.call(body, "thank_you_message")) {
+          if (
+            body.thank_you_message !== null &&
+            typeof body.thank_you_message !== "string"
+          ) {
+            return json({
+              ok: false,
+              error: "お礼メッセージの入力内容が正しくありません。",
+            }, 400);
+          }
+
+          const message =
+            typeof body.thank_you_message === "string"
+              ? body.thank_you_message.trim()
+              : null;
+
+          if (message !== null && message.length > 5000) {
+            return json({
+              ok: false,
+              error: "お礼メッセージは5000文字以内で入力してください。",
+            }, 400);
+          }
+
+          updateData.thank_you_message = message || null;
+        }
+
+        if (Object.prototype.hasOwnProperty.call(body, "show_watermark")) {
+          if (typeof body.show_watermark !== "boolean") {
+            return json({
+              ok: false,
+              error: "透かしの設定値が正しくありません。",
+            }, 400);
+          }
+
+          updateData.show_watermark = body.show_watermark;
+        }
+
+        if (Object.keys(updateData).length === 0) {
+          return json({
+            ok: false,
+            error: "保存する設定がありません。",
+          }, 400);
+        }
+
+        const publicSettingsUrl = new URL(
+          `${baseUrl}/rest/v1/challenges`
+        );
+
+        publicSettingsUrl.searchParams.set("id", `eq.${current.id}`);
+        publicSettingsUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+
+        const response = await fetch(publicSettingsUrl, {
+          method: "PATCH",
+          headers: {
+            ...headers,
+            Prefer: "return=representation",
+          },
+          body: JSON.stringify(updateData),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Public settings update failed:", errorText);
+
+          return json({
+            ok: false,
+            error: "お礼メッセージ・透かし設定を保存できませんでした。",
+          }, 502);
+        }
+
+        const updated = await response.json();
+
+        if (!updated.length) {
+          return json({
+            ok: false,
+            error: "設定を保存できませんでした。",
+          }, 400);
+        }
+
+        return json({
+          ok: true,
+          thank_you_message: updated[0].thank_you_message,
+          show_watermark: updated[0].show_watermark,
+          message: "設定を保存しました。",
+        });
+      }
+
+      // 終了後は、お礼メッセージ・透かし設定以外の操作を禁止
       if (current.is_ended === true) {
         return json({
           ok: false,
@@ -563,6 +655,38 @@ export async function onRequest({ request, env }) {
       image_scale: Number(body.image_scale ?? 100),
     };
 
+    // 新規チャレンジでは透かしを初期状態でONにする。
+    // 既存チャレンジでは、指定がある項目だけを更新する。
+    if (typeof body.show_watermark === "boolean") {
+      challengeData.show_watermark = body.show_watermark;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(body, "thank_you_message")) {
+      if (
+        body.thank_you_message !== null &&
+        typeof body.thank_you_message !== "string"
+      ) {
+        return json({
+          ok: false,
+          error: "お礼メッセージの入力内容が正しくありません。",
+        }, 400);
+      }
+
+      const message =
+        typeof body.thank_you_message === "string"
+          ? body.thank_you_message.trim()
+          : null;
+
+      if (message !== null && message.length > 5000) {
+        return json({
+          ok: false,
+          error: "お礼メッセージは5000文字以内で入力してください。",
+        }, 400);
+      }
+
+      challengeData.thank_you_message = message || null;
+    }
+
     let challengeId;
 
     if (existing) {
@@ -589,6 +713,14 @@ export async function onRequest({ request, env }) {
         }, 502);
       }
     } else {
+      if (!Object.prototype.hasOwnProperty.call(challengeData, "show_watermark")) {
+        challengeData.show_watermark = true;
+      }
+
+      if (!Object.prototype.hasOwnProperty.call(challengeData, "thank_you_message")) {
+        challengeData.thank_you_message = null;
+      }
+
       const createResponse = await fetch(
         `${baseUrl}/rest/v1/challenges`,
         {
