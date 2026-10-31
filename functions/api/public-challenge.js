@@ -28,12 +28,16 @@ export async function onRequest({ request, env }) {
   }
 
   const baseUrl = env.SUPABASE_URL.replace(/\/+$/, "");
+
   const headers = {
     apikey: env.SUPABASE_SECRET_KEY,
   };
 
   try {
-    const challengeUrl = new URL(`${baseUrl}/rest/v1/challenges`);
+    // チャレンジ情報を取得
+    const challengeUrl = new URL(
+      `${baseUrl}/rest/v1/challenges`
+    );
 
     challengeUrl.searchParams.set(
       "select",
@@ -50,6 +54,8 @@ export async function onRequest({ request, env }) {
         "is_started",
         "is_ended",
         "featured_panel_number",
+        "thank_you_message",
+        "show_watermark",
       ].join(",")
     );
 
@@ -77,6 +83,7 @@ export async function onRequest({ request, env }) {
     }
 
     const challengeList = await challengeResponse.json();
+
     const record = Array.isArray(challengeList)
       ? challengeList[0]
       : null;
@@ -88,6 +95,7 @@ export async function onRequest({ request, env }) {
       }, 404);
     }
 
+    // パネル情報を取得
     const panelsUrl = new URL(
       `${baseUrl}/rest/v1/challenge_panels`
     );
@@ -97,8 +105,15 @@ export async function onRequest({ request, env }) {
       "panel_number,condition_text,target_value,current_value,is_open"
     );
 
-    panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
-    panelsUrl.searchParams.set("order", "panel_number.asc");
+    panelsUrl.searchParams.set(
+      "challenge_id",
+      `eq.${record.id}`
+    );
+
+    panelsUrl.searchParams.set(
+      "order",
+      "panel_number.asc"
+    );
 
     const panelsResponse = await fetch(panelsUrl, {
       headers,
@@ -125,40 +140,62 @@ export async function onRequest({ request, env }) {
     const panels = panelRecords
       .map((panel) => ({
         panel_number: Number(panel.panel_number),
+
         condition_text:
           typeof panel.condition_text === "string"
             ? panel.condition_text
             : "",
+
         target_value:
           typeof panel.target_value === "string"
             ? panel.target_value
             : panel.target_value == null
               ? ""
               : String(panel.target_value),
+
         current_value:
           typeof panel.current_value === "string"
             ? panel.current_value
             : panel.current_value == null
               ? ""
               : String(panel.current_value),
+
         is_open: panel.is_open === true,
       }))
       .sort((a, b) => a.panel_number - b.panel_number);
 
+    // リスナー側へ返すチャレンジ情報
     const challenge = {
       title: record.title,
+
       grid_rows: record.grid_rows,
       grid_columns: record.grid_columns,
+
       image_url: record.image_url,
       image_position_x: record.image_position_x,
       image_position_y: record.image_position_y,
       image_scale: record.image_scale,
+
       is_started: record.is_started === true,
       is_ended: record.is_ended === true,
+
       featured_panel_number:
         record.featured_panel_number == null
           ? null
           : Number(record.featured_panel_number),
+
+      // チャレンジ終了後のお礼メッセージ
+      thank_you_message:
+        typeof record.thank_you_message === "string"
+          ? record.thank_you_message
+          : "",
+
+      // 透かし表示設定
+      // DBの値が取得できない場合は初期設定のONとして扱う
+      show_watermark:
+        typeof record.show_watermark === "boolean"
+          ? record.show_watermark
+          : true,
     };
 
     return json({
@@ -166,6 +203,7 @@ export async function onRequest({ request, env }) {
       challenge,
       panels,
     });
+
   } catch (error) {
     console.error("Public challenge error:", error);
 
