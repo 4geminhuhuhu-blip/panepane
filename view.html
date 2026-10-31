@@ -325,7 +325,7 @@
         0 0 10px rgba(237,150,61,.55);
     }
 
-    /* パネパン透かし：立ち絵とパネルの上に薄く重ねる */
+    /* パネパン透かし：画面全体に斜めの線と文字を繰り返す */
     .watermark {
       position: absolute;
       inset: 0;
@@ -333,45 +333,40 @@
       overflow: hidden;
       pointer-events: none;
       user-select: none;
-      opacity: .42;
-    }
+      opacity: 0.32;
 
-    .watermark::before,
-    .watermark::after {
-      content: "";
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 145%;
-      height: 1px;
-      background: rgba(255, 255, 255, .78);
-      box-shadow: 0 1px 1px rgba(80, 85, 75, .10);
-      transform-origin: center;
-    }
-
-    .watermark::before {
-      transform: translate(-50%, -50%) rotate(35deg);
-    }
-
-    .watermark::after {
-      transform: translate(-50%, -50%) rotate(-35deg);
+      background-image:
+        repeating-linear-gradient(
+          135deg,
+          transparent 0,
+          transparent 34px,
+          rgba(255, 255, 255, 0.55) 35px,
+          transparent 36px
+        );
     }
 
     .watermark-label {
       position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%) rotate(-18deg);
-      padding: 5px 14px;
-      border: 1px solid rgba(255, 255, 255, .65);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, .16);
-      color: rgba(255, 255, 255, .88);
-      font-size: clamp(14px, 4vw, 28px);
-      font-weight: 800;
-      letter-spacing: .16em;
-      text-shadow: 0 1px 3px rgba(50, 55, 48, .28);
-      white-space: nowrap;
+      inset: -50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      width: 200%;
+      height: 200%;
+
+      transform: rotate(-25deg);
+
+      color: rgba(255, 255, 255, 0.88);
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(12px, 2vw, 19px);
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      line-height: 5;
+      text-align: center;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      text-shadow: 0 1px 2px rgba(40, 45, 40, 0.25);
     }
 
     .thank-you-message {
@@ -385,6 +380,7 @@
       line-height: 1.75;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
     }
 
     .thank-you-title {
@@ -556,8 +552,8 @@
     }
 
     .export-board .watermark-label {
-      font-size: 34px;
-      padding: 8px 22px;
+      font-size: 19px;
+      padding: 0;
     }
 
     .export-board .panel {
@@ -697,7 +693,11 @@
       <div id="panels" class="panels"></div>
 
       <div id="watermark" class="watermark" aria-hidden="true">
-        <span class="watermark-label">パネパン</span>
+        <span class="watermark-label">パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
+      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
+      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
+      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
+      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中</span>
       </div>
     </div>
 
