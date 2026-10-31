@@ -982,6 +982,42 @@
       imageStatus.className = "hint";
       imageStatus.style.marginTop = "5px";
       imageStatus.textContent = savedImageUrl ? "画像登録済み" : "画像未登録";
+      const deleteImageButton = document.createElement("button");
+      deleteImageButton.type = "button";
+      deleteImageButton.className = "secondary-button";
+      deleteImageButton.textContent = "登録画像を削除";
+      deleteImageButton.style.marginTop = "8px";
+      deleteImageButton.hidden = !savedImageUrl;
+      deleteImageButton.addEventListener("click", async function () {
+        if (!confirm("条件 " + number + " に登録した画像を削除しますか？\n\n立ち絵やパネルの文章・数値は削除されません。")) return;
+        deleteImageButton.disabled = true;
+        imageInput.disabled = true;
+        imageStatus.textContent = "画像を削除しています...";
+        try {
+          const response = await fetch("/api/challenge-panel-image-delete", {
+            method: "POST",
+            credentials: "same-origin",
+            cache: "no-store",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ panel_number: number })
+          });
+          const result = await response.json();
+          if (!response.ok || result.ok !== true) throw new Error(result.error || "画像を削除できませんでした。");
+          const savedPanel = panels.find(p => Number(p.panel_number) === number);
+          if (savedPanel) savedPanel.panel_image_url = null;
+          imagePreview.removeAttribute("src");
+          imagePreview.hidden = true;
+          deleteImageButton.hidden = true;
+          imageStatus.textContent = "画像未登録";
+          showMessage("条件 " + number + " の画像を削除しました。", "success");
+        } catch (error) {
+          imageStatus.textContent = "画像登録済み";
+          showMessage(error.message || "画像の削除に失敗しました。", "error");
+        } finally {
+          deleteImageButton.disabled = false;
+          imageInput.disabled = false;
+        }
+      });
       imageInput.addEventListener("change", async function () {
         const file = imageInput.files && imageInput.files[0];
         if (!file) return;
@@ -1015,6 +1051,7 @@
           imagePreview.src = result.panel_image_url;
           imagePreview.hidden = false;
           imageStatus.textContent = "画像登録済み";
+          deleteImageButton.hidden = false;
           showMessage("条件 " + number + " に画像を登録しました。", "success");
         } catch (error) {
           imageStatus.textContent = savedImageUrl ? "画像登録済み" : "画像未登録";
@@ -1082,6 +1119,7 @@
       imageInput,
       imagePreview,
       imageStatus,
+      deleteImageButton,
       panelButton,
       featuredButton
     );
