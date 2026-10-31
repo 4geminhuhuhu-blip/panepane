@@ -325,7 +325,7 @@
         0 0 10px rgba(237,150,61,.55);
     }
 
-    /* パネパン透かし：画面全体に斜めの線と文字を繰り返す */
+    /* パネパン透かし：画面全体に斜めの細線と文字を繰り返す */
     .watermark {
       position: absolute;
       inset: 0;
@@ -333,40 +333,34 @@
       overflow: hidden;
       pointer-events: none;
       user-select: none;
-      opacity: 0.32;
-
-      background-image:
+      opacity: .34;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(3, 1fr);
+      background:
         repeating-linear-gradient(
-          135deg,
+          -35deg,
           transparent 0,
           transparent 34px,
-          rgba(255, 255, 255, 0.55) 35px,
-          transparent 36px
+          rgba(255, 255, 255, .48) 35px,
+          rgba(255, 255, 255, .48) 36px,
+          transparent 37px,
+          transparent 72px
         );
     }
 
     .watermark-label {
-      position: absolute;
-      inset: -50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-
-      width: 200%;
-      height: 200%;
-
-      transform: rotate(-25deg);
-
-      color: rgba(255, 255, 255, 0.88);
-      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
-      font-size: clamp(12px, 2vw, 19px);
-      font-weight: bold;
-      letter-spacing: 0.08em;
-      line-height: 5;
-      text-align: center;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-      text-shadow: 0 1px 2px rgba(40, 45, 40, 0.25);
+      align-self: center;
+      justify-self: center;
+      color: rgba(255, 255, 255, .88);
+      font-size: clamp(10px, 1.9vw, 17px);
+      font-weight: 700;
+      letter-spacing: .08em;
+      white-space: nowrap;
+      text-shadow:
+        0 1px 2px rgba(45, 50, 42, .42),
+        1px 0 1px rgba(45, 50, 42, .18);
+      transform: rotate(-35deg);
     }
 
     .thank-you-message {
@@ -376,11 +370,11 @@
       border-radius: 14px;
       background: rgba(255, 255, 255, .72);
       color: #596457;
+      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
       text-align: center;
       line-height: 1.75;
       white-space: pre-wrap;
       overflow-wrap: anywhere;
-      font-family: "Hanazome", "Yu Gothic", "Meiryo", sans-serif;
     }
 
     .thank-you-title {
@@ -551,11 +545,6 @@
       isolation: isolate;
     }
 
-    .export-board .watermark-label {
-      font-size: 19px;
-      padding: 0;
-    }
-
     .export-board .panel {
       padding: 8px;
       gap: 6px;
@@ -693,11 +682,15 @@
       <div id="panels" class="panels"></div>
 
       <div id="watermark" class="watermark" aria-hidden="true">
-        <span class="watermark-label">パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
-      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
-      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
-      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中
-      パネパンでパネル開け中　　パネパンでパネル開け中　　パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
+        <span class="watermark-label">パネパンでパネル開け中</span>
       </div>
     </div>
 
@@ -891,6 +884,17 @@
       const rightDoor = document.createElement("div");
       rightDoor.className = "door-right";
 
+      if (panel.panel_image_url) {
+        leftDoor.classList.add("door-image");
+        rightDoor.classList.add("door-image");
+        leftDoor.style.backgroundImage = `url("${panel.panel_image_url}")`;
+        rightDoor.style.backgroundImage = `url("${panel.panel_image_url}")`;
+        leftDoor.style.backgroundSize = "200% 100%";
+        rightDoor.style.backgroundSize = "200% 100%";
+        leftDoor.style.backgroundPosition = "left center";
+        rightDoor.style.backgroundPosition = "right center";
+      }
+
       cell.appendChild(leftDoor);
       cell.appendChild(rightDoor);
 
@@ -923,7 +927,7 @@
       }
 
       if (panel.is_open === true) {
-        // アニメーション中は文字を表示しない
+        // 開放済みパネルでは、背景のキャラクター画像を見せる
         return cell;
       }
 
@@ -1104,6 +1108,16 @@
 
           const rightDoor = document.createElement("div");
           rightDoor.className = "door-right";
+          if (panel.panel_image_url) {
+            leftDoor.classList.add("door-image");
+            rightDoor.classList.add("door-image");
+            leftDoor.style.backgroundImage = `url("${panel.panel_image_url}")`;
+            rightDoor.style.backgroundImage = `url("${panel.panel_image_url}")`;
+            leftDoor.style.backgroundSize = "200% 100%";
+            rightDoor.style.backgroundSize = "200% 100%";
+            leftDoor.style.backgroundPosition = "left center";
+            rightDoor.style.backgroundPosition = "right center";
+          }
 
           cell.prepend(leftDoor, rightDoor);
         }
