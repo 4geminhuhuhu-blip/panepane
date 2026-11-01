@@ -348,10 +348,12 @@
     .setting-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
     .setting-row input[type="checkbox"] { width: auto; }
     .setting-row label { display: inline; margin: 0; }
-    .auto-create-card {border:2px solid #c7d9f4;background:#f8fbff;}
+    .auto-create-card,.gift-calculator-card {border:2px solid #c7d9f4;background:#f8fbff;}
     .auto-create-grid {display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:end;}
     .auto-create-preview {padding:10px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;font-size:18px;font-weight:700;text-align:center;}
     .auto-reason-badge {display:inline-block;margin:0 0 8px;padding:4px 9px;border-radius:14px;background:#e0f2fe;color:#075985;font-size:11px;font-weight:700;}
+    .auto-allocation-badge {display:inline-block;margin:0 0 8px 5px;padding:4px 9px;border-radius:14px;background:#eef2ff;color:#3730a3;font-size:11px;font-weight:700;}
+    .auto-total-status {margin:12px 0;padding:10px 12px;border-radius:8px;background:#f8fafc;line-height:1.6;font-weight:700;}
     .gift-free-badge {display:inline-block;margin:0 0 8px 5px;padding:4px 9px;border-radius:14px;background:#dcfce7;color:#166534;font-size:11px;font-weight:700;}
     #auto-create-message {min-height:22px;margin:12px 0 0;line-height:1.6;}
     @media (max-width:560px) {.auto-create-grid {grid-template-columns:1fr;}}
@@ -452,7 +454,7 @@
 
       <div class="grid-settings">
         <div>
-          <label for="grid-rows">縦のマス数 <span class="field-mark required">必須</span></label>
+          <label for="grid-rows">縦のマス数 <span class="field-mark optional">任意</span></label>
           <select id="grid-rows">
             <option value="3">3マス</option>
             <option value="4">4マス</option>
@@ -466,7 +468,7 @@
         </div>
 
         <div>
-          <label for="grid-columns">横のマス数 <span class="field-mark required">必須</span></label>
+          <label for="grid-columns">横のマス数 <span class="field-mark optional">任意</span></label>
           <select id="grid-columns">
             <option value="3">3マス</option>
             <option value="4">4マス</option>
@@ -488,11 +490,11 @@
 
     <section class="card auto-create-card" id="auto-create-card">
       <h2>かんたん自動作成（9枚）</h2>
-      <p class="hint">チャレンジタイトルは上の「基本設定」で入力してください。目標応援PTとギフトなしパネルの枚数を指定すると、3×3のおすすめ配分を作成します。生成後は、下の既存パネル設定画面で項目や目標PTを自由に編集できます。</p>
+      <p class="hint">入力はすべて任意です。目標応援PTを入力して「おすすめを自動作成」を押すと、3×3の9枚におすすめを設定します。ギフトなしパネルの枚数は未指定なら0枚です。生成後は、下の条件設定で内容を自由に補正できます。</p>
       <div class="auto-create-grid">
         <div>
-          <label for="auto-support-target">目標応援PT <span class="field-mark required">必須</span></label>
-          <input id="auto-support-target" type="number" min="1" step="1" inputmode="numeric" placeholder="例：90000" required aria-required="true">
+          <label for="auto-support-target">目標応援PT <span class="field-mark optional">任意</span></label>
+          <input id="auto-support-target" type="number" min="1" step="1" inputmode="numeric" placeholder="例：90000">
         </div>
         <div>
           <label>実際のギフト目標（配分対象ポイント）</label>
@@ -500,7 +502,7 @@
           <p class="hint">目標応援PT ÷ 3（小数点以下切り上げ）</p>
         </div>
         <div>
-          <label for="auto-gift-free-count">ギフトなしパネルの枚数 <span class="field-mark required">必須</span></label>
+          <label for="auto-gift-free-count">ギフトなしパネルの枚数 <span class="field-mark optional">任意</span></label>
           <select id="auto-gift-free-count">
             <option value="0">0枚</option><option value="1">1枚</option><option value="2">2枚</option>
             <option value="3">3枚</option><option value="4">4枚</option><option value="5">5枚</option>
@@ -518,11 +520,11 @@
       <h2>立ち絵の設定</h2>
 
       <p class="hint">
-        PNG・JPEG・WebP形式、5MB以下の画像を選択してください。
+        PNG・JPEG・WebP形式、5MB以下の画像を選択してください。チャレンジ開始前にアップロードが必要です。
         アップロードした画像は公開チャレンジでも表示されます。
       </p>
 
-      <label for="character-image">立ち絵画像 <span class="field-mark optional">任意</span></label>
+      <label for="character-image">立ち絵画像 <span class="field-mark required">必須</span></label>
       <input id="character-image" type="file"
         accept="image/png,image/jpeg,image/webp">
 
@@ -581,8 +583,8 @@
     <section class="card">
       <h2>条件の設定</h2>
       <p class="hint">
-        各条件の「項目」「目標」「あと（残りの数）」はすべて任意入力です。空欄のままでも保存できます。
-        すべて自由なテキストで入力でき、数値の計算や自動更新は行いません。
+        各条件の「項目」と「目標」は必須、「あと（残りの数）」は任意です。
+        項目・目標は自由なテキストで入力できます。自動作成後のおすすめ内容も自由に補正できます。
       </p>
 
       <div class="csv-area">
@@ -600,6 +602,7 @@
 
       <p id="panel-count" class="hint">9条件</p>
       <div id="panel-list" class="panel-list"></div>
+      <p id="auto-panel-total-status" class="auto-total-status" hidden aria-live="polite"></p>
 
       <div class="actions">
         <button id="save-button" type="button">設定を保存</button>
@@ -631,7 +634,7 @@
       <p id="logout-message" role="status"></p>
     </section>
 
-      <section class="card" id="gift-calculator">
+      <section class="card gift-calculator-card" id="gift-calculator">
         <h2>ギフトポイント配分計算</h2>
         <p class="hint">
           目標応援ポイントとギフトのポイント数を入力して配分を計算します。
@@ -641,7 +644,7 @@
 
         <div class="gift-target-grid">
           <div>
-            <label for="gift-target-points">目標応援ポイント <span class="field-mark required">必須</span></label>
+            <label for="gift-target-points">目標応援ポイント <span class="field-mark optional">任意</span></label>
             <input id="gift-target-points" type="number" min="1" step="1" placeholder="例：2000000">
           </div>
           <div>
@@ -651,9 +654,9 @@
           </div>
         </div>
 
-        <h3>使用するギフト</h3>
+        <h3>使用するギフト <span class="field-mark optional">任意</span></h3>
         <p class="hint">
-          配分計算にはギフトポイントを1種類以上入力してください。空欄の行は計算対象外です。低〜中ポイントを中心に、高ポイントのギフトも少し混ぜる割合を自動提案します。割合は計算後に自由に調整できます。
+          計算するときだけ、目標応援ポイントとギフトポイントを入力してください。空欄のままでも問題ありません。配分計算にはギフトポイントを1種類以上入力してください。空欄の行は計算対象外です。低〜中ポイントを中心に、高ポイントのギフトも少し混ぜる割合を自動提案します。割合は計算後に自由に調整できます。
         </p>
 
         <div class="gift-table-wrap">
@@ -733,6 +736,7 @@
   let uploadingImage = false;
   let previewObjectUrl = null;
   let hasAutoGeneratedPanels = false;
+  let autoGiftTargetBaseline = null;
 
   function showMessage(text, type) {
     message.textContent = text;
@@ -984,6 +988,14 @@
       reasonBadge.textContent = reasonText;
       reasonBadge.hidden = !reasonText;
 
+      const allocationBadge = document.createElement("span");
+      allocationBadge.className = "auto-allocation-badge";
+      const allocationPoints = panel && panel.auto_target_pt != null && Number.isSafeInteger(Number(panel.auto_target_pt))
+        ? Number(panel.auto_target_pt) : null;
+      allocationBadge.textContent = allocationPoints === null
+        ? "" : "配分目標 " + formatAutoPoints(allocationPoints) + "PT";
+      allocationBadge.hidden = allocationPoints === null;
+
       const isGiftFree = Boolean(panel && panel.is_gift_free === true);
       const giftFreeBadge = document.createElement("span");
       giftFreeBadge.className = "gift-free-badge";
@@ -1015,7 +1027,16 @@
         : savedValue;
 
       label.htmlFor = input.id;
-      label.textContent = labelText + "（任意）";
+      const required = field === "condition_text" || field === "target_value";
+      label.textContent = labelText;
+      const mark = document.createElement("span");
+      mark.className = "field-mark " + (required ? "required" : "optional");
+      mark.textContent = required ? "必須" : "任意";
+      label.appendChild(mark);
+      if (required) {
+        input.required = true;
+        input.setAttribute("aria-required", "true");
+      }
 
       if (!isCondition) {
         return { label, input };
@@ -1039,31 +1060,47 @@
       const conditionInput = createTextInput(
         "condition_text",
         "項目",
-        "例：チャンネル登録者数",
+        panel && panel.is_gift_free ? "例：スター、入室者数など" : "例：500PTギフト",
         savedValues.condition_text
       );
 
       const targetInput = createTextInput(
         "target_value",
         "目標",
-        "例：10万人、1個、1000人",
+        panel && panel.is_gift_free ? "例：10個、100人など" : "例：10個",
         savedValues.target_value
       );
 
       const currentInput = createTextInput(
         "current_value",
         "あと（残りの数）",
-        "例：800人、あと3個",
+        "例：0、あと3個（空欄可）",
         savedValues.current_value
       );
 
-      targetInput.input.addEventListener("input", function () {
+      function syncAutoAllocationFromInputs() {
         const savedPanel = panels.find(p => Number(p.panel_number) === number);
-        if (savedPanel && savedPanel.is_gift_free === true && targetInput.input.value.trim() !== "0") {
-          savedPanel.is_gift_free = false;
-          giftFreeBadge.hidden = true;
+        if (!savedPanel || savedPanel.is_gift_free === true) {
+          updateAutoPanelTotalStatus();
+          return;
         }
-      });
+        const giftMatch = conditionInput.input.value.match(/([0-9][0-9,]*)\s*PT/i);
+        if (giftMatch) {
+          const point = Number(giftMatch[1].replace(/,/g, ""));
+          if (Number.isSafeInteger(point) && point > 0) savedPanel.auto_gift_point = point;
+        }
+        const quantityMatch = targetInput.input.value.match(/^\s*([0-9][0-9,]*)\s*(?:個|回|枚)?\s*$/);
+        const giftPoint = Number(savedPanel.auto_gift_point);
+        if (quantityMatch && Number.isSafeInteger(giftPoint) && giftPoint > 0) {
+          const quantity = Number(quantityMatch[1].replace(/,/g, ""));
+          if (Number.isSafeInteger(quantity)) savedPanel.auto_target_pt = giftPoint * quantity;
+        }
+        allocationBadge.textContent = "配分目標 " + formatAutoPoints(Number(savedPanel.auto_target_pt || 0)) + "PT";
+        allocationBadge.hidden = false;
+        updateAutoPanelTotalStatus();
+      }
+      conditionInput.input.addEventListener("input", syncAutoAllocationFromInputs);
+      targetInput.input.addEventListener("input", syncAutoAllocationFromInputs);
 
       // パネル画像（1枚2MBまで）
       const imageLabel = document.createElement("label");
@@ -1209,6 +1246,7 @@
       heading,
       reasonBadge,
       giftFreeBadge,
+      allocationBadge,
       state,
       conditionInput.label,
       conditionInput.input,
@@ -1232,6 +1270,32 @@
     updateControls();
   }
 
+  function updateAutoPanelTotalStatus() {
+    const status = document.getElementById("auto-panel-total-status");
+    if (!status) return;
+    if (!hasAutoGeneratedPanels) {
+      status.hidden = true;
+      return;
+    }
+    const expected = Number.isSafeInteger(Number(autoGiftTargetBaseline)) && Number(autoGiftTargetBaseline) > 0
+      ? Number(autoGiftTargetBaseline) : getAutoGiftTarget();
+    const actual = panels.reduce((sum, panel) => {
+      const value = Number(panel.auto_target_pt);
+      return sum + (Number.isSafeInteger(value) && value >= 0 ? value : 0);
+    }, 0);
+    status.hidden = false;
+    if (actual < expected) {
+      status.textContent = "合計 " + formatAutoPoints(actual) + "PT ／ 目標 " + formatAutoPoints(expected) + "PT：企画目標PTを下回っています";
+      status.style.color = "#b45309";
+    } else if (actual > expected) {
+      status.textContent = "合計 " + formatAutoPoints(actual) + "PT ／ 目標 " + formatAutoPoints(expected) + "PT：企画目標PTを上回っています";
+      status.style.color = "#b91c1c";
+    } else {
+      status.textContent = "合計 " + formatAutoPoints(actual) + "PT ／ 目標 " + formatAutoPoints(expected) + "PT：目標と一致しています";
+      status.style.color = "#166534";
+    }
+  }
+
   // ========================================
   // かんたん自動作成（9パネル）
   // 目標応援PT ÷ 3 を切り上げ、9枚の目標PT合計と一致させる。
@@ -1243,6 +1307,22 @@
 
   function formatAutoPoints(value) {
     return Math.round(value).toLocaleString("ja-JP");
+  }
+
+  // パネルの配分PTに近く、個数が10個前後になるギフトPTをおすすめする。
+  // 実際のギフト名・個数はライバーが自由に補正できる。
+  const AUTO_GIFT_DENOMINATIONS = [10, 20, 30, 50, 100, 200, 300, 500, 700, 1000, 1500, 2000, 3000, 5000, 7000, 10000];
+  function recommendAutoGift(targetPoints) {
+    if (!Number.isSafeInteger(targetPoints) || targetPoints <= 0) return { point: 0, quantity: 0 };
+    let best = null;
+    AUTO_GIFT_DENOMINATIONS.filter(point => point <= targetPoints).forEach(point => {
+      const quantity = Math.max(1, Math.round(targetPoints / point));
+      const actual = point * quantity;
+      const score = Math.abs(quantity - 10) * 100 + Math.abs(actual - targetPoints) / Math.max(1, targetPoints);
+      if (!best || score < best.score) best = { point, quantity, score };
+    });
+    if (!best) return { point: targetPoints, quantity: 1 };
+    return { point: best.point, quantity: best.quantity };
   }
 
   function getAutoGiftTarget() {
@@ -1341,14 +1421,6 @@
   function createAutoPanels() {
     if (loading || saving || isEnded() || (challenge && challenge.is_started)) return;
 
-    const title = titleInput.value.trim();
-    if (!title) {
-      autoCreateMessage.textContent = "先にチャレンジタイトルを入力してください。";
-      autoCreateMessage.className = "error";
-      titleInput.focus();
-      return;
-    }
-
     const supportTarget = Number(autoSupportTargetInput.value);
     if (!Number.isSafeInteger(supportTarget) || supportTarget < 1) {
       autoCreateMessage.textContent = "目標応援PTは1以上の整数で入力してください。";
@@ -1370,11 +1442,13 @@
     const freePanelSet = new Set(freePanelNumbers);
     const activePanelNumbers = Array.from({ length: 9 }, (_, index) => index + 1)
       .filter(number => !freePanelSet.has(number));
-    // 配分対象が30,000PTを超える場合は、②を象徴的な30,000PTに設定。
+    // 配分対象が30,000PT以上の場合は、②を象徴的な30,000PTに設定。
     // ②はギフトなし配置の対象外。残りをほかの有効パネルへ難易度比率で配分する。
-    const isHighTarget = giftTarget > 30000;
+    const useHighContrast = giftTarget >= 30000;
+    // 30,000PTを②に固定するのは、残りにも配分できる40,000PT以上の場合だけ。
+    const reserveMainPanel = giftTarget >= 40000 && activePanelNumbers.length > 1;
     let targets;
-    if (isHighTarget && activePanelNumbers.length > 1) {
+    if (reserveMainPanel) {
       targets = Array(9).fill(0);
       targets[1] = 30000;
       const remainingPanels = activePanelNumbers.filter(number => number !== 2);
@@ -1388,25 +1462,31 @@
         targets[number - 1] = remainingTargets[number - 1];
       });
     } else {
-      const weights = isHighTarget ? AUTO_HIGH_CONTRAST_WEIGHTS : AUTO_BALANCED_WEIGHTS;
+      const weights = useHighContrast ? AUTO_HIGH_CONTRAST_WEIGHTS : AUTO_BALANCED_WEIGHTS;
       targets = distributeAutoPoints(giftTarget, activePanelNumbers, weights);
     }
-    const reasons = createAutoPanelReasons(isHighTarget, freePanelSet);
+    const effectiveFreePanelSet = new Set(freePanelSet);
+    targets.forEach((value, index) => { if (value === 0) effectiveFreePanelSet.add(index + 1); });
+    const reasons = createAutoPanelReasons(useHighContrast, effectiveFreePanelSet);
+    autoGiftTargetBaseline = giftTarget;
 
     // 既存のパネル画像などの付随情報は保持し、入力値だけを自動作成結果に置き換える。
     const oldPanelsByNumber = new Map(panels.map(panel => [Number(panel.panel_number), panel]));
     panels = Array.from({ length: 9 }, (_, index) => {
       const number = index + 1;
       const oldPanel = oldPanelsByNumber.get(number) || {};
-      const isGiftFree = freePanelSet.has(number);
+      const isGiftFree = effectiveFreePanelSet.has(number);
+      const recommendedGift = isGiftFree ? { point: 0, quantity: 0 } : recommendAutoGift(targets[index]);
       return {
         ...oldPanel,
         panel_number: number,
-        condition_text: "",
-        target_value: String(isGiftFree ? 0 : targets[index]),
-        current_value: "0",
+        condition_text: isGiftFree ? "" : String(recommendedGift.point) + "PTギフト",
+        target_value: isGiftFree ? "" : String(recommendedGift.quantity) + "個",
+        current_value: isGiftFree ? "" : "0",
         auto_reason: reasons[number],
-        is_gift_free: isGiftFree
+        is_gift_free: isGiftFree,
+        auto_target_pt: isGiftFree ? 0 : targets[index],
+        auto_gift_point: isGiftFree ? null : recommendedGift.point
       };
     });
 
@@ -1422,9 +1502,11 @@
     autoCreateMessage.textContent =
       "9枚を自動作成しました。配分対象 " + formatAutoPoints(giftTarget) +
       " PT（目標応援PT " + formatAutoPoints(supportTarget) + " PT ÷ 3）。" +
-      "項目や目標PTを確認・編集してから「設定を保存」してください。";
+      (effectiveFreePanelSet.size > freePanelSet.size ? "配分が0PTとなる条件もギフトなしにしています。" : "") +
+      "ギフト名・個数はおすすめです。気に入らなければ自由に補正してから保存してください。";
     autoCreateMessage.className = "success";
-    showMessage("おすすめの9枚を作成しました。内容を確認して保存してください。", "success");
+    updateAutoPanelTotalStatus();
+    showMessage("おすすめの9枚を作成しました。ギフトの種類や個数を確認・補正して保存してください。", "success");
   }
 
   autoSupportTargetInput.addEventListener("input", updateAutoGiftPreview);
@@ -1631,7 +1713,11 @@
       challenge = result.challenge || null;
       panels = Array.isArray(result.panels) ? result.panels : [];
       hasAutoGeneratedPanels = panels.some(panel => typeof panel.auto_reason === "string" && panel.auto_reason.length > 0);
+      autoGiftTargetBaseline = challenge && challenge.auto_gift_target_pt != null
+        ? Number(challenge.auto_gift_target_pt)
+        : (hasAutoGeneratedPanels ? panels.reduce((sum, panel) => sum + (Number(panel.auto_target_pt) || 0), 0) : null);
       autoCreateButton.textContent = hasAutoGeneratedPanels ? "もう一度自動作成" : "おすすめを自動作成";
+      updateAutoPanelTotalStatus();
 
       thankYouMessageInput.value = challenge && typeof challenge.thank_you_message === "string"
         ? challenge.thank_you_message
@@ -1961,6 +2047,17 @@
         'input[data-number="' + number + '"][data-field="current_value"]'
       );
 
+    if (!conditionInput.value.trim()) {
+      showMessage("条件 " + number + " の項目を入力してください。", "error");
+      conditionInput.focus();
+      return;
+    }
+    if (!targetInput.value.trim()) {
+      showMessage("条件 " + number + " の目標を入力してください。", "error");
+      targetInput.focus();
+      return;
+    }
+
     if ([...conditionInput.value].length > 12) {
       showMessage(
         "条件 " + number + " の項目名は12文字以内にしてください。",
@@ -1988,7 +2085,10 @@
         target_value: targetInput.value,
         current_value: currentInput.value,
         auto_reason: typeof savedPanelMeta.auto_reason === "string" ? savedPanelMeta.auto_reason : null,
-        is_gift_free: savedPanelMeta.is_gift_free === true && targetInput.value.trim() === "0"
+        is_gift_free: savedPanelMeta.is_gift_free === true,
+        auto_target_pt: savedPanelMeta.auto_target_pt != null && Number.isSafeInteger(Number(savedPanelMeta.auto_target_pt)) ? Number(savedPanelMeta.auto_target_pt) : null,
+        auto_gift_point: savedPanelMeta.auto_gift_point != null && Number.isSafeInteger(Number(savedPanelMeta.auto_gift_point)) ? Number(savedPanelMeta.auto_gift_point) : null,
+        panel_image_url: typeof savedPanelMeta.panel_image_url === "string" ? savedPanelMeta.panel_image_url : null
       });
     }
 
@@ -2014,6 +2114,7 @@
           image_scale: Number(imageScaleInput.value),
           thank_you_message: thankYouMessageInput.value,
           show_watermark: showWatermarkInput.checked,
+          auto_gift_target_pt: autoGiftTargetBaseline,
           panels: conditions
         })
       });
@@ -2164,6 +2265,12 @@
 
     if (challenge.is_started) {
       showMessage("チャレンジはすでに開始されています。");
+      return;
+    }
+
+    if (!challenge.image_url) {
+      showMessage("チャレンジ開始前に立ち絵画像をアップロードしてください。", "error");
+      document.getElementById("character-image").focus();
       return;
     }
 
