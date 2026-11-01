@@ -132,7 +132,7 @@ export async function onRequest({ request, env }) {
 
       panelsUrl.searchParams.set(
         "select",
-        "panel_number,condition_text,target_value,current_value,is_open"
+        "panel_number,condition_text,target_value,current_value,is_open,auto_reason,is_gift_free"
       );
       panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
       panelsUrl.searchParams.set("order", "panel_number.asc");
@@ -547,16 +547,19 @@ export async function onRequest({ request, env }) {
 
     if (
       !title ||
+      title.length > 100 ||
       !Number.isInteger(rows) ||
       !Number.isInteger(columns) ||
-      rows < 1 ||
-      columns < 1 ||
+      rows < 3 ||
+      columns < 3 ||
+      rows > 10 ||
+      columns > 10 ||
       rows * columns > 100 ||
       !Array.isArray(body.panels)
     ) {
       return json({
         ok: false,
-        error: "入力内容を確認してください。",
+        error: "入力内容を確認してください。タイトルは1〜100文字、マス数は縦・横ともに3〜10で入力してください。",
       }, 400);
     }
 
@@ -606,6 +609,12 @@ export async function onRequest({ request, env }) {
             ? ""
             : String(panel.current_value);
 
+      const autoReason =
+        typeof panel.auto_reason === "string" && panel.auto_reason.length <= 80
+          ? panel.auto_reason
+          : null;
+      const isGiftFree = panel.is_gift_free === true;
+
       if (
         conditionText.length > 500 ||
         targetValue.length > 500 ||
@@ -622,6 +631,8 @@ export async function onRequest({ request, env }) {
         condition_text: conditionText,
         target_value: targetValue,
         current_value: currentValue,
+        auto_reason: autoReason,
+        is_gift_free: isGiftFree,
         updated_at: now,
       });
     }
