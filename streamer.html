@@ -1000,7 +1000,7 @@
       const giftFreeBadge = document.createElement("span");
       giftFreeBadge.className = "gift-free-badge";
       giftFreeBadge.textContent = "ギフトなし・0PT";
-      giftFreeBadge.hidden = !isGiftFree;
+      giftFreeBadge.hidden = !isGiftFree || (allocationPoints !== null && allocationPoints > 0);
 
       const isOpen = Boolean(panel && panel.is_open);
 
@@ -1020,7 +1020,7 @@
 
       const isCondition = field === "condition_text";
 
-      input.maxLength = isCondition ? 12 : 500;
+      input.maxLength = isCondition ? 40 : 500;
 
       input.value = inputValues[field] !== undefined
         ? inputValues[field]
@@ -1047,7 +1047,7 @@
 
       function updateCounter() {
         const length = [...input.value].length;
-        counter.textContent = length + " / 12文字";
+        counter.textContent = length + " / 40文字";
         counter.classList.toggle("over-limit", length > 12);
       }
 
@@ -1060,7 +1060,7 @@
       const conditionInput = createTextInput(
         "condition_text",
         "項目",
-        panel && panel.is_gift_free ? "例：スター、入室者数など" : "例：500PTギフト",
+        panel && panel.is_gift_free ? "例：スター、入室者数など" : "例：500ポイントのギフトを選んでね！",
         savedValues.condition_text
       );
 
@@ -1480,7 +1480,7 @@
       return {
         ...oldPanel,
         panel_number: number,
-        condition_text: isGiftFree ? "" : String(recommendedGift.point) + "PTギフト",
+        condition_text: isGiftFree ? "" : String(recommendedGift.point) + "ポイントのギフトを選んでね！",
         target_value: isGiftFree ? "" : String(recommendedGift.quantity) + "個",
         current_value: isGiftFree ? "" : "0",
         auto_reason: reasons[number],
@@ -1947,10 +1947,10 @@
           current_value: String(columns[2] || "").trim()
         };
 
-       if ([...values.condition_text].length > 12) {
+       if ([...values.condition_text].length > 40) {
        throw new Error(
         lineNumber +
-    "行目：項目名は12文字以内にしてください。"
+    "行目：項目名は40文字以内にしてください。"
       );
     }
 
@@ -2058,9 +2058,9 @@
       return;
     }
 
-    if ([...conditionInput.value].length > 12) {
+    if ([...conditionInput.value].length > 40) {
       showMessage(
-        "条件 " + number + " の項目名は12文字以内にしてください。",
+        "条件 " + number + " の項目名は40文字以内にしてください。",
         "error"
       );
       conditionInput.focus();
