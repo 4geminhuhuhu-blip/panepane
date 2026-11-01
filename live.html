@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#173b63">
+  <title>パネパン｜配信中管理</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f1f5f9;
+      color: #172b45;
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      -webkit-text-size-adjust: 100%;
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      padding: 12px 14px;
+      color: #fff;
+      background: #173b63;
+      box-shadow: 0 2px 8px #0002;
+    }
+    .header-inner { max-width: 760px; margin: 0 auto; }
+    header h1 { margin: 0; font-size: 20px; }
+    header p { margin: 4px 0 0; color: #dbeafe; font-size: 12px; }
+    main { width: min(100% - 20px, 760px); margin: 14px auto 36px; }
+    .top-actions { display: flex; gap: 8px; margin-bottom: 12px; }
+    .back-link {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 42px; padding: 9px 13px; border-radius: 9px;
+      color: #17436b; background: #fff; text-decoration: none;
+      font-size: 14px; font-weight: 700; border: 1px solid #cbd5e1;
+    }
+    .challenge-summary, .notice {
+      background: #fff; border-radius: 13px; padding: 14px 16px;
+      margin-bottom: 12px; box-shadow: 0 2px 7px #0f172a0a;
+    }
+    #challenge-title { margin: 0 0 6px; font-size: 18px; overflow-wrap: anywhere; }
+    #challenge-status { color: #475569; font-size: 13px; }
+    #message { min-height: 20px; margin: 6px 2px 12px; color: #475569; font-size: 13px; }
+    #message.error { color: #b91c1c; font-weight: 700; }
+    #message.success { color: #0f766e; }
+    .panel-list { display: flex; flex-direction: column; gap: 10px; }
+    .counter-card {
+      background: #fff; border: 1px solid #dbe3ec; border-radius: 14px;
+      padding: 13px; box-shadow: 0 2px 7px #0f172a0a;
+    }
+    .counter-card.achieved { background: #f0fdf4; border-color: #86c99c; }
+    .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+    .panel-name { margin: 0; font-size: 16px; font-weight: 800; overflow-wrap: anywhere; }
+    .panel-number { flex: 0 0 auto; color: #64748b; font-size: 12px; font-weight: 700; }
+    .panel-target { margin-top: 4px; color: #64748b; font-size: 13px; overflow-wrap: anywhere; }
+    .count-line { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; margin: 10px 0 3px; }
+    .count-number { font-size: 30px; line-height: 1; font-weight: 900; font-variant-numeric: tabular-nums; color: #173b63; }
+    .count-goal { color: #64748b; font-size: 14px; font-weight: 700; }
+    .remaining { margin: 0 0 10px; color: #b45309; font-size: 14px; font-weight: 800; }
+    .achieved-label { display: inline-flex; align-items: center; margin: 0 0 10px; padding: 5px 10px; border-radius: 99px; background: #dcfce7; color: #166534; font-size: 13px; font-weight: 900; }
+    .button-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .count-button, .open-button {
+      min-height: 52px; border: 0; border-radius: 11px; font: inherit;
+      font-size: 17px; font-weight: 900; touch-action: manipulation;
+      cursor: pointer;
+    }
+    .count-button { background: #e0efff; color: #17436b; }
+    .count-button.plus { background: #1769aa; color: #fff; }
+    .count-button.minus { background: #e2e8f0; color: #334155; }
+    .count-button:active, .open-button:active { transform: scale(.98); }
+    .count-button:disabled, .open-button:disabled { opacity: .45; cursor: wait; }
+    .open-button { width: 100%; margin-top: 9px; background: #0f766e; color: #fff; }
+    .opened-label { margin-top: 9px; color: #0f766e; font-size: 13px; font-weight: 800; }
+    .empty-state { padding: 22px 16px; text-align: center; color: #64748b; background: #fff; border-radius: 13px; }
+    .hidden { display: none !important; }
+    @media (min-width: 600px) {
+      main { margin-top: 20px; }
+      .counter-card { padding: 16px 18px; }
+      .panel-name { font-size: 18px; }
+      .button-row { grid-template-columns: repeat(4, minmax(90px, 1fr)); }
+    }
+    @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-inner">
+      <h1>配信中管理</h1>
+      <p>カウントを入力したら、自動で保存されます</p>
+    </div>
+  </header>
+  <main>
+    <div class="top-actions">
+      <a class="back-link" href="/streamer.html">← 企画設定・準備へ</a>
+    </div>
+    <section class="challenge-summary">
+      <h2 id="challenge-title">読み込み中...</h2>
+      <div id="challenge-status">チャレンジ情報を確認しています</div>
+    </section>
+    <div id="notice" class="notice hidden"></div>
+    <div id="message" role="status" aria-live="polite"></div>
+    <section id="panel-list" class="panel-list" aria-label="パネルカウンター"></section>
+    <div id="empty-state" class="empty-state hidden"></div>
+  </main>
+<script>
+(function () {
+  "use strict";
+
+  const titleEl = document.getElementById("challenge-title");
+  const statusEl = document.getElementById("challenge-status");
+  const noticeEl = document.getElementById("notice");
+  const messageEl = document.getElementById("message");
+  const panelListEl = document.getElementById("panel-list");
+  const emptyEl = document.getElementById("empty-state");
+
+  let challenge = null;
+  let panels = [];
+  let isLoading = false;
+  let isActive = false;
+  const queues = new Map();
+
+  function setMessage(message, type) {
+    messageEl.textContent = message || "";
+    messageEl.className = type || "";
+  }
+
+  function numberFromText(value) {
+    const match = String(value == null ? "" : value).match(/[0-9][0-9,]*/);
+    if (!match) return null;
+    const number = Number(match[0].replace(/,/g, ""));
+    return Number.isSafeInteger(number) && number > 0 ? number : null;
+  }
+
+  function getGoal(panel) {
+    return numberFromText(panel.target_value);
+  }
+
+  function getGiftPoint(panel) {
+    if (panel.is_gift_free === true) return 0;
+    const saved = Number(panel.auto_gift_point);
+    if (Number.isSafeInteger(saved) && saved > 0) return saved;
+    const match = String(panel.condition_text || "").match(/([0-9][0-9,]*)\s*(?:ポイント|pt)/i);
+    if (!match) return 0;
+    const point = Number(match[1].replace(/,/g, ""));
+    return Number.isSafeInteger(point) && point > 0 ? point : 0;
+  }
+
+  function getCount(panel) {
+    const count = Number(panel.count_value);
+    return Number.isSafeInteger(count) && count > 0 ? count : 0;
+  }
+
+  function isAchieved(panel) {
+    const goal = getGoal(panel);
+    return goal !== null && getCount(panel) >= goal;
+  }
+
+  function orderedPanels() {
+    return panels.slice().sort(function (a, b) {
+      const aDone = isAchieved(a);
+      const bDone = isAchieved(b);
+      if (aDone !== bDone) return aDone ? 1 : -1;
+      if (aDone && bDone) return Number(a.panel_number) - Number(b.panel_number);
+      const pointDiff = getGiftPoint(a) - getGiftPoint(b);
+      if (pointDiff !== 0) return pointDiff;
+      return Number(a.panel_number) - Number(b.panel_number);
+    });
+  }
+
+  function makeButton(label, className, onClick) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "count-button " + className;
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function render() {
+    const scrollY = window.scrollY;
+    panelListEl.replaceChildren();
+    emptyEl.classList.add("hidden");
+
+    if (!challenge) {
+      emptyEl.textContent = "企画がまだ作成されていません。先に企画設定・準備ページで作成してください。";
+      emptyEl.classList.remove("hidden");
+      window.scrollTo(0, scrollY);
+      return;
+    }
+
+    if (!panels.length) {
+      emptyEl.textContent = "パネルが登録されていません。企画設定・準備ページを確認してください。";
+      emptyEl.classList.remove("hidden");
+      window.scrollTo(0, scrollY);
+      return;
+    }
+
+    orderedPanels().forEach(function (panel) {
+      const card = document.createElement("article");
+      card.className = "counter-card" + (isAchieved(panel) ? " achieved" : "");
+
+      const top = document.createElement("div");
+      top.className = "card-top";
+      const name = document.createElement("h3");
+      name.className = "panel-name";
+      name.textContent = panel.condition_text || ("パネル " + panel.panel_number);
+      const number = document.createElement("span");
+      number.className = "panel-number";
+      number.textContent = "No." + panel.panel_number;
+      top.append(name, number);
+      card.appendChild(top);
+
+      const target = document.createElement("div");
+      target.className = "panel-target";
+      target.textContent = "目標：" + (panel.target_value || "未設定");
+      card.appendChild(target);
+
+      const goal = getGoal(panel);
+      const count = getCount(panel);
+      const countLine = document.createElement("div");
+      countLine.className = "count-line";
+      const countNumber = document.createElement("span");
+      countNumber.className = "count-number";
+      countNumber.textContent = String(count);
+      const countGoal = document.createElement("span");
+      countGoal.className = "count-goal";
+      countGoal.textContent = goal === null ? "/ 目標の数字を確認してください" : "/ " + goal;
+      countLine.append(countNumber, countGoal);
+      card.appendChild(countLine);
+
+      const achieved = goal !== null && count >= goal;
+      if (achieved) {
+        const done = document.createElement("div");
+        done.className = "achieved-label";
+        done.textContent = "達成！";
+        card.appendChild(done);
+      } else if (goal !== null) {
+        const remaining = document.createElement("p");
+        remaining.className = "remaining";
+        remaining.textContent = "あと " + Math.max(0, goal - count);
+        card.appendChild(remaining);
+      }
+
+      const controls = document.createElement("div");
+      controls.className = "button-row";
+      const giftPoint = getGiftPoint(panel);
+      const deltas = giftPoint >= 100 ? [1] : [1, 5, 10];
+      controls.style.gridTemplateColumns = "repeat(" + (deltas.length + 1) + ", minmax(0, 1fr))";
+      deltas.forEach(function (delta) {
+        controls.appendChild(makeButton("＋" + delta, "plus", function () {
+          adjustCount(Number(panel.panel_number), delta);
+        }));
+      });
+      controls.appendChild(makeButton("−1", "minus", function () {
+        adjustCount(Number(panel.panel_number), -1);
+      }));
+      if (!isActive || goal === null) {
+        controls.querySelectorAll("button").forEach(function (button) { button.disabled = true; });
+      }
+      card.appendChild(controls);
+
+      if (panel.is_open) {
+        const opened = document.createElement("div");
+        opened.className = "opened-label";
+        opened.textContent = "パネル開放済み";
+        card.appendChild(opened);
+      } else if (achieved) {
+        const openButton = document.createElement("button");
+        openButton.type = "button";
+        openButton.className = "open-button";
+        openButton.textContent = "達成！ パネルを開く";
+        openButton.disabled = !isActive;
+        openButton.addEventListener("click", function () {
+          setPanelOpen(Number(panel.panel_number));
+        });
+        card.appendChild(openButton);
+      }
+
+      panelListEl.appendChild(card);
+    });
+    window.scrollTo(0, scrollY);
+  }
+
+  async function getChallenge() {
+    const response = await fetch("/api/challenge", {
+      method: "GET", credentials: "same-origin", cache: "no-store"
+    });
+    const result = await response.json();
+    if (response.status === 401) {
+      window.location.replace("/");
+      return false;
+    }
+    if (!response.ok || result.ok !== true) {
+      throw new Error(result.error || "企画情報を取得できませんでした。");
+    }
+    challenge = result.challenge || null;
+    panels = Array.isArray(result.panels) ? result.panels.map(function (panel) {
+      return Object.assign({}, panel, { count_value: Number(panel.count_value) || 0 });
+    }) : [];
+    titleEl.textContent = challenge ? challenge.title : "企画未作成";
+    isActive = Boolean(challenge && challenge.is_started && !challenge.is_ended);
+    if (!challenge) {
+      statusEl.textContent = "企画がありません";
+      noticeEl.textContent = "先に「企画設定・準備」でパネルを作成してください。";
+      noticeEl.classList.remove("hidden");
+    } else if (challenge.is_ended) {
+      statusEl.textContent = "企画終了";
+      noticeEl.textContent = "この企画は終了しています。カウント操作はできません。";
+      noticeEl.classList.remove("hidden");
+    } else if (!challenge.is_started) {
+      statusEl.textContent = "開始前";
+      noticeEl.textContent = "企画を開始すると、ここでカウントできるようになります。";
+      noticeEl.classList.remove("hidden");
+    } else {
+      statusEl.textContent = "配信中・カウント受付中";
+      noticeEl.classList.add("hidden");
+    }
+    render();
+    return true;
+  }
+
+  async function load(silent) {
+    if (isLoading) return;
+    isLoading = true;
+    if (!silent) setMessage("読み込み中...");
+    try {
+      await getChallenge();
+      if (!silent) setMessage("最新の状態を読み込みました。", "success");
+    } catch (error) {
+      setMessage(error.message || "読み込みに失敗しました。", "error");
+    } finally {
+      isLoading = false;
+    }
+  }
+
+  async function sendDelta(panelNumber, delta) {
+    const response = await fetch("/api/challenge", {
+      method: "PATCH", credentials: "same-origin", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "adjust-panel-count", panel_number: panelNumber, delta: delta })
+    });
+    const result = await response.json();
+    if (response.status === 401) {
+      window.location.replace("/");
+      throw new Error("ログインの有効期限が切れました。");
+    }
+    if (!response.ok || result.ok !== true) {
+      throw new Error(result.error || "カウントを保存できませんでした。");
+    }
+    return Number(result.count_value) || 0;
+  }
+
+  function adjustCount(panelNumber, delta) {
+    if (!isActive) return;
+    const panel = panels.find(function (item) { return Number(item.panel_number) === panelNumber; });
+    if (!panel) return;
+
+    // 画面は先に反映し、保存リクエストはパネルごとに順番に処理する。
+    panel.count_value = Math.max(0, getCount(panel) + delta);
+    render();
+    setMessage("カウントを保存しています...");
+
+    let queue = queues.get(panelNumber);
+    if (!queue) {
+      queue = { deltas: [], running: false };
+      queues.set(panelNumber, queue);
+    }
+    queue.deltas.push(delta);
+    if (queue.running) return;
+
+    queue.running = true;
+    (async function processQueue() {
+      try {
+        while (queue.deltas.length) {
+          const nextDelta = queue.deltas.shift();
+          const savedCount = await sendDelta(panelNumber, nextDelta);
+          const latestPanel = panels.find(function (item) { return Number(item.panel_number) === panelNumber; });
+          if (latestPanel) latestPanel.count_value = savedCount;
+          render();
+        }
+        setMessage("保存しました", "success");
+      } catch (error) {
+        queue.deltas.length = 0;
+        setMessage(error.message || "保存に失敗しました。最新状態を再取得します。", "error");
+        await load(true);
+      } finally {
+        queue.running = false;
+        if (!queue.deltas.length) queues.delete(panelNumber);
+      }
+    })();
+  }
+
+  async function setPanelOpen(panelNumber) {
+    if (!isActive) return;
+    setMessage("パネルを開いています...");
+    try {
+      const response = await fetch("/api/challenge", {
+        method: "PATCH", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-panel", panel_number: panelNumber, is_open: true })
+      });
+      const result = await response.json();
+      if (!response.ok || result.ok !== true) throw new Error(result.error || "パネルを開けませんでした。");
+      await load(true);
+      setMessage("パネルを開きました！", "success");
+    } catch (error) {
+      setMessage(error.message || "パネルを開けませんでした。", "error");
+      await load(true);
+    }
+  }
+
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState === "visible") load(true);
+  });
+  window.addEventListener("pageshow", function (event) {
+    if (event.persisted) load(true);
+  });
+
+  load(false);
+})();
+</script>
+</body>
+</html>
