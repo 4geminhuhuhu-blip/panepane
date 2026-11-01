@@ -34,9 +34,28 @@
       color: #17436b; background: #fff; text-decoration: none;
       font-size: 14px; font-weight: 700; border: 1px solid #cbd5e1;
     }
-    .challenge-summary, .notice {
+    .challenge-summary, .notice, .viewer-card {
       background: #fff; border-radius: 13px; padding: 14px 16px;
       margin-bottom: 12px; box-shadow: 0 2px 7px #0f172a0a;
+    }
+    .viewer-card h2 { margin: 0 0 8px; font-size: 15px; }
+    .viewer-url-row { display: flex; gap: 8px; }
+    .viewer-url-row input { min-width: 0; flex: 1; padding: 11px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 13px; }
+    .viewer-url-row a, .viewer-url-row button { display: inline-flex; align-items: center; justify-content: center; min-height: 42px; padding: 8px 12px; border: 0; border-radius: 8px; background: #1769aa; color: #fff; text-decoration: none; font: inherit; font-size: 13px; font-weight: 800; white-space: nowrap; }
+    .editor-row { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; margin-top: 12px; }
+    .editor-field { min-width: 0; }
+    .editor-field label { display: block; margin-bottom: 4px; color: #475569; font-size: 12px; font-weight: 800; }
+    .editor-field input { width: 100%; min-height: 44px; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 9px; font: inherit; font-size: 17px; font-weight: 800; }
+    .save-edit-button { align-self: end; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 9px; background: #475569; color: white; font: inherit; font-size: 13px; font-weight: 800; }
+    .editors { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+    .editor-box { min-width: 0; padding: 9px; background: #f8fafc; border-radius: 10px; }
+    .editor-box .editor-row { margin-top: 0; }
+    .editor-box .save-edit-button { padding-inline: 10px; }
+    @media (max-width: 420px) {
+      .viewer-url-row { flex-wrap: wrap; }
+      .viewer-url-row input { flex-basis: 100%; }
+      .viewer-url-row a, .viewer-url-row button { flex: 1; }
+      .editors { grid-template-columns: 1fr; }
     }
     #challenge-title { margin: 0 0 6px; font-size: 18px; overflow-wrap: anywhere; }
     #challenge-status { color: #475569; font-size: 13px; }
@@ -66,7 +85,6 @@
     }
     .count-button { background: #e0efff; color: #17436b; }
     .count-button.plus { background: #1769aa; color: #fff; }
-    .count-button.minus { background: #e2e8f0; color: #334155; }
     .count-button:active, .open-button:active { transform: scale(.98); }
     .count-button:disabled, .open-button:disabled { opacity: .45; cursor: wait; }
     .open-button { width: 100%; margin-top: 9px; background: #0f766e; color: #fff; }
@@ -97,6 +115,14 @@
       <h2 id="challenge-title">読み込み中...</h2>
       <div id="challenge-status">チャレンジ情報を確認しています</div>
     </section>
+    <section class="viewer-card">
+      <h2>閲覧者用URL</h2>
+      <div class="viewer-url-row">
+        <input id="viewer-url" type="text" readonly placeholder="企画を作成するとURLが表示されます">
+        <button id="copy-viewer-url" type="button" disabled>URLをコピー</button>
+        <a id="open-viewer-url" href="#" target="_blank" rel="noopener" aria-disabled="true">閲覧ページ</a>
+      </div>
+    </section>
     <div id="notice" class="notice hidden"></div>
     <div id="message" role="status" aria-live="polite"></div>
     <section id="panel-list" class="panel-list" aria-label="パネルカウンター"></section>
@@ -112,6 +138,9 @@
   const messageEl = document.getElementById("message");
   const panelListEl = document.getElementById("panel-list");
   const emptyEl = document.getElementById("empty-state");
+  const viewerUrlInput = document.getElementById("viewer-url");
+  const copyViewerUrlButton = document.getElementById("copy-viewer-url");
+  const openViewerUrlLink = document.getElementById("open-viewer-url");
 
   let challenge = null;
   let panels = [];
@@ -125,9 +154,10 @@
   }
 
   function numberFromText(value) {
-    const match = String(value == null ? "" : value).match(/[0-9][0-9,]*/);
-    if (!match) return null;
-    const number = Number(match[0].replace(/,/g, ""));
+    const text = String(value == null ? "" : value).trim();
+    // 目標欄が数値だけの場合にカウンターを有効化（「4人」などは対象外）
+    if (!/^\d[\d,]*$/.test(text)) return null;
+    const number = Number(text.replace(/,/g, ""));
     return Number.isSafeInteger(number) && number > 0 ? number : null;
   }
 
@@ -217,6 +247,75 @@
 
       const goal = getGoal(panel);
       const count = getCount(panel);
+      const editors = document.createElement("div");
+      editors.className = "editors";
+
+      const goalBox = document.createElement("div");
+      goalBox.className = "editor-box";
+      const goalEditorRow = document.createElement("div");
+      goalEditorRow.className = "editor-row";
+      const goalField = document.createElement("div");
+      goalField.className = "editor-field";
+      const goalLabel = document.createElement("label");
+      goalLabel.textContent = "カウンター目標（数値）";
+      const goalInput = document.createElement("input");
+      goalInput.type = "number";
+      goalInput.min = "1";
+      goalInput.step = "1";
+      goalInput.inputMode = "numeric";
+      goalInput.placeholder = "目標数";
+      goalInput.value = goal === null ? "" : String(goal);
+      goalField.append(goalLabel, goalInput);
+      const goalSave = document.createElement("button");
+      goalSave.type = "button";
+      goalSave.className = "save-edit-button";
+      goalSave.textContent = "目標を保存";
+      goalSave.disabled = !isActive;
+      goalSave.addEventListener("click", function () {
+        const value = Number(goalInput.value);
+        if (!Number.isSafeInteger(value) || value < 1) {
+          setMessage("目標は1以上の整数で入力してください。", "error");
+          return;
+        }
+        savePanelTarget(Number(panel.panel_number), value, goalSave);
+      });
+      goalEditorRow.append(goalField, goalSave);
+      goalBox.appendChild(goalEditorRow);
+
+      const countBox = document.createElement("div");
+      countBox.className = "editor-box";
+      const countEditorRow = document.createElement("div");
+      countEditorRow.className = "editor-row";
+      const countField = document.createElement("div");
+      countField.className = "editor-field";
+      const countLabel = document.createElement("label");
+      countLabel.textContent = "現在のカウント数";
+      const countInput = document.createElement("input");
+      countInput.type = "number";
+      countInput.min = "0";
+      countInput.max = "2147483647";
+      countInput.step = "1";
+      countInput.inputMode = "numeric";
+      countInput.value = String(count);
+      countField.append(countLabel, countInput);
+      const countSave = document.createElement("button");
+      countSave.type = "button";
+      countSave.className = "save-edit-button";
+      countSave.textContent = "数値を保存";
+      countSave.disabled = !isActive;
+      countSave.addEventListener("click", function () {
+        const value = Number(countInput.value);
+        if (!Number.isSafeInteger(value) || value < 0) {
+          setMessage("カウントは0以上の整数で入力してください。", "error");
+          return;
+        }
+        savePanelCount(Number(panel.panel_number), value, countSave);
+      });
+      countEditorRow.append(countField, countSave);
+      countBox.appendChild(countEditorRow);
+      editors.append(goalBox, countBox);
+      card.appendChild(editors);
+
       const countLine = document.createElement("div");
       countLine.className = "count-line";
       const countNumber = document.createElement("span");
@@ -224,7 +323,7 @@
       countNumber.textContent = String(count);
       const countGoal = document.createElement("span");
       countGoal.className = "count-goal";
-      countGoal.textContent = goal === null ? "/ 目標の数字を確認してください" : "/ " + goal;
+      countGoal.textContent = goal === null ? "" : "/ " + goal;
       countLine.append(countNumber, countGoal);
       card.appendChild(countLine);
 
@@ -244,16 +343,15 @@
       const controls = document.createElement("div");
       controls.className = "button-row";
       const giftPoint = getGiftPoint(panel);
-      const deltas = giftPoint >= 100 ? [1] : [1, 5, 10];
-      controls.style.gridTemplateColumns = "repeat(" + (deltas.length + 1) + ", minmax(0, 1fr))";
+      const deltas = giftPoint === 0
+        ? [1, 5, 10, 50, 100, 1000]
+        : giftPoint < 100 ? [1, 5, 10] : [1];
+      controls.style.gridTemplateColumns = "repeat(" + (deltas.length >= 6 ? 3 : deltas.length) + ", minmax(0, 1fr))";
       deltas.forEach(function (delta) {
         controls.appendChild(makeButton("＋" + delta, "plus", function () {
           adjustCount(Number(panel.panel_number), delta);
         }));
       });
-      controls.appendChild(makeButton("−1", "minus", function () {
-        adjustCount(Number(panel.panel_number), -1);
-      }));
       if (!isActive || goal === null) {
         controls.querySelectorAll("button").forEach(function (button) { button.disabled = true; });
       }
@@ -298,6 +396,13 @@
       return Object.assign({}, panel, { count_value: Number(panel.count_value) || 0 });
     }) : [];
     titleEl.textContent = challenge ? challenge.title : "企画未作成";
+    const viewerUrl = challenge && challenge.id
+      ? window.location.origin + "/view.html?id=" + encodeURIComponent(challenge.id)
+      : "";
+    viewerUrlInput.value = viewerUrl;
+    copyViewerUrlButton.disabled = !viewerUrl;
+    openViewerUrlLink.href = viewerUrl || "#";
+    openViewerUrlLink.setAttribute("aria-disabled", viewerUrl ? "false" : "true");
     isActive = Boolean(challenge && challenge.is_started && !challenge.is_ended);
     if (!challenge) {
       statusEl.textContent = "企画がありません";
@@ -390,6 +495,50 @@
     })();
   }
 
+  async function savePanelTarget(panelNumber, targetValue, button) {
+    if (!isActive) return;
+    button.disabled = true;
+    setMessage("目標を保存しています...");
+    try {
+      const response = await fetch("/api/challenge", {
+        method: "PATCH", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-panel-target", panel_number: panelNumber, target_value: String(targetValue) })
+      });
+      const result = await response.json();
+      if (response.status === 401) { window.location.replace("/"); return; }
+      if (!response.ok || result.ok !== true) throw new Error(result.error || "目標を保存できませんでした。");
+      const panel = panels.find(function (item) { return Number(item.panel_number) === panelNumber; });
+      if (panel) panel.target_value = String(targetValue);
+      render();
+      setMessage("目標を保存しました", "success");
+    } catch (error) {
+      setMessage(error.message || "目標を保存できませんでした。", "error");
+    } finally { button.disabled = false; }
+  }
+
+  async function savePanelCount(panelNumber, countValue, button) {
+    if (!isActive) return;
+    button.disabled = true;
+    setMessage("カウント数を保存しています...");
+    try {
+      const response = await fetch("/api/challenge", {
+        method: "PATCH", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set-panel-count", panel_number: panelNumber, count_value: countValue })
+      });
+      const result = await response.json();
+      if (response.status === 401) { window.location.replace("/"); return; }
+      if (!response.ok || result.ok !== true) throw new Error(result.error || "カウント数を保存できませんでした。");
+      const panel = panels.find(function (item) { return Number(item.panel_number) === panelNumber; });
+      if (panel) panel.count_value = Number(result.count_value);
+      render();
+      setMessage("カウント数を保存しました", "success");
+    } catch (error) {
+      setMessage(error.message || "カウント数を保存できませんでした。", "error");
+    } finally { button.disabled = false; }
+  }
+
   async function setPanelOpen(panelNumber) {
     if (!isActive) return;
     setMessage("パネルを開いています...");
@@ -408,6 +557,17 @@
       await load(true);
     }
   }
+
+  copyViewerUrlButton.addEventListener("click", async function () {
+    if (!viewerUrlInput.value) return;
+    try {
+      await navigator.clipboard.writeText(viewerUrlInput.value);
+      setMessage("閲覧者用URLをコピーしました", "success");
+    } catch (error) {
+      viewerUrlInput.focus(); viewerUrlInput.select();
+      setMessage("URLを選択しました。手動でコピーしてください。", "error");
+    }
+  });
 
   document.addEventListener("visibilitychange", function () {
     if (document.visibilityState === "visible") load(true);
