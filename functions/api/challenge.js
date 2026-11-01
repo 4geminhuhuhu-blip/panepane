@@ -98,7 +98,7 @@ export async function onRequest({ request, env }) {
 
     challengeUrl.searchParams.set(
       "select",
-      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended,featured_panel_number,thank_you_message,show_watermark"
+      "id,streamer_id,title,grid_rows,grid_columns,image_url,image_position_x,image_position_y,image_scale,is_started,is_ended,featured_panel_number,thank_you_message,show_watermark,auto_gift_target_pt"
     );
 
     challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
@@ -132,7 +132,7 @@ export async function onRequest({ request, env }) {
 
       panelsUrl.searchParams.set(
         "select",
-        "panel_number,condition_text,target_value,current_value,is_open,auto_reason,is_gift_free"
+        "panel_number,condition_text,target_value,current_value,is_open,auto_reason,is_gift_free,auto_target_pt,auto_gift_point,panel_image_url"
       );
       panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
       panelsUrl.searchParams.set("order", "panel_number.asc");
@@ -352,8 +352,26 @@ export async function onRequest({ request, env }) {
         });
       }
 
-      // チャレンジ開始
+      // チャレンジ開始：立ち絵と全条件の必須項目を確認
       if (body.action === "start") {
+        if (!current.image_url) {
+          return json({ ok: false, error: "チャレンジ開始前に立ち絵画像をアップロードしてください。" }, 400);
+        }
+        const requiredPanelsUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+        requiredPanelsUrl.searchParams.set("select", "panel_number,condition_text,target_value");
+        requiredPanelsUrl.searchParams.set("challenge_id", `eq.${current.id}`);
+        requiredPanelsUrl.searchParams.set("panel_number", `lte.${Number(current.grid_rows) * Number(current.grid_columns)}`);
+        requiredPanelsUrl.searchParams.set("order", "panel_number.asc");
+        const requiredPanelsResponse = await fetch(requiredPanelsUrl, { headers });
+        if (!requiredPanelsResponse.ok) {
+          return json({ ok: false, error: "条件の入力内容を確認できませんでした。" }, 502);
+        }
+        const requiredPanels = await requiredPanelsResponse.json();
+        const expectedPanelCount = Number(current.grid_rows) * Number(current.grid_columns);
+        if (requiredPanels.length !== expectedPanelCount || requiredPanels.some(panel => !String(panel.condition_text || "").trim() || !String(panel.target_value || "").trim())) {
+          return json({ ok: false, error: "すべての条件の「項目」と「目標」を入力してから開始してください。" }, 400);
+        }
+
         const startUrl = new URL(
           `${baseUrl}/rest/v1/challenges`
         );
@@ -544,6 +562,12 @@ export async function onRequest({ request, env }) {
 
     const rows = Number(body.grid_rows);
     const columns = Number(body.grid_columns);
+    const autoGiftTargetPt = body.auto_gift_target_pt == null || body.auto_gift_target_pt === ""
+      ? null : Number(body.auto_gift_target_pt);
+
+    if (autoGiftTargetPt !== null && (!Number.isSafeInteger(autoGiftTargetPt) || autoGiftTargetPt <= 0)) {
+      return json({ ok: false, error: "自動作成の配分対象ポイントが正しくありません。" }, 400);
+    }
 
     if (
       !title ||
@@ -614,6 +638,23 @@ export async function onRequest({ request, env }) {
           ? panel.auto_reason
           : null;
       const isGiftFree = panel.is_gift_free === true;
+      const autoTargetPt = panel.auto_target_pt == null || panel.auto_target_pt === ""
+        ? null : Number(panel.auto_target_pt);
+      const autoGiftPoint = panel.auto_gift_point == null || panel.auto_gift_point === ""
+        ? null : Number(panel.auto_gift_point);
+      const panelImageUrl = typeof panel.panel_image_url === "string" && panel.panel_image_url.length <= 2048
+        ? panel.panel_image_url : null;
+
+      if (
+        (autoTargetPt !== null && (!Number.isSafeInteger(autoTargetPt) || autoTargetPt < 0)) ||
+        (autoGiftPoint !== null && (!Number.isSafeInteger(autoGiftPoint) || autoGiftPoint <= 0))
+      ) {
+        return json({ ok: false, error: `${panelNumber}番の自動作成ポイント情報が正しくありません。` }, 400);
+      }
+
+      if (!conditionText.trim() || !targetValue.trim()) {
+        return json({ ok: false, error: `条件 ${panelNumber} の「項目」と「目標」は必須です。` }, 400);
+      }
 
       if (
         conditionText.length > 500 ||
@@ -633,8 +674,15 @@ export async function onRequest({ request, env }) {
         current_value: currentValue,
         auto_reason: autoReason,
         is_gift_free: isGiftFree,
+        auto_target_pt: autoTargetPt,
+        auto_gift_point: autoGiftPoint,
+        panel_image_url: panelImageUrl,
         updated_at: now,
       });
+    }
+
+    if (panelNumbers.size !== rows * columns) {
+      return json({ ok: false, error: "すべての条件を入力してください。" }, 400);
     }
 
     const existingResponse = await fetch(challengeUrl, { headers });
@@ -664,6 +712,7 @@ export async function onRequest({ request, env }) {
       image_position_x: Number(body.image_position_x ?? 0),
       image_position_y: Number(body.image_position_y ?? 0),
       image_scale: Number(body.image_scale ?? 100),
+      auto_gift_target_pt: autoGiftTargetPt,
     };
 
     // 新規チャレンジでは透かしを初期状態でONにする。
