@@ -181,20 +181,32 @@
 
     /* 重点パネル */
     .panel-item.featured-panel {
+      position: relative;
+      padding-top: 38px;
       border: 3px solid #d97706;
       background: #fffbeb;
       box-shadow: 0 0 0 3px #fef3c7;
     }
 
     .featured-badge {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 5;
       display: inline-block;
-      margin: 0 0 8px;
-      padding: 5px 11px;
-      border-radius: 20px;
-      background: #fef3c7;
-      color: #92400e;
+      margin: 0;
+      padding: 5px 10px;
+      border: 2px solid #fff7ed;
+      border-radius: 5px;
+      background: linear-gradient(135deg, #ef4444, #c2410c);
+      color: #ffffff;
       font-size: 12px;
-      font-weight: bold;
+      font-weight: 900;
+      line-height: 1.2;
+      letter-spacing: .02em;
+      transform: rotate(7deg);
+      box-shadow: 0 2px 5px rgba(124, 45, 18, .28);
+      pointer-events: none;
     }
 
     button {
@@ -1230,7 +1242,7 @@
       if (isFeatured) {
         const badge = document.createElement("div");
         badge.className = "featured-badge";
-        badge.textContent = "★ 重点パネル";
+        badge.textContent = "🔥 今イチオシ！";
         item.appendChild(badge);
       }
 
