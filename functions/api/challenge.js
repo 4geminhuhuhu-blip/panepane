@@ -132,7 +132,7 @@ export async function onRequest({ request, env }) {
 
       panelsUrl.searchParams.set(
         "select",
-        "panel_number,condition_text,target_value,current_value,is_open,auto_reason,is_gift_free,auto_target_pt,auto_gift_point,panel_image_url"
+        "panel_number,condition_text,target_value,current_value,count_value,is_open,auto_reason,is_gift_free,auto_target_pt,auto_gift_point,panel_image_url"
       );
       panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
       panelsUrl.searchParams.set("order", "panel_number.asc");
@@ -456,6 +456,82 @@ export async function onRequest({ request, env }) {
         return json({
           ok: true,
           message: "チャレンジを終了しました。",
+        });
+      }
+
+      // 配信中カウンター：個別パネルのカウントを安全に加減算
+      if (body.action === "adjust-panel-count") {
+        const panelNumber = Number(body.panel_number);
+        const delta = Number(body.delta);
+
+        if (
+          !Number.isInteger(panelNumber) ||
+          panelNumber < 1 ||
+          ![-1, 1, 5, 10].includes(delta)
+        ) {
+          return json({ ok: false, error: "カウントの指定が正しくありません。" }, 400);
+        }
+
+        if (!current.is_started || current.is_ended) {
+          return json({ ok: false, error: "配信中のチャレンジでのみカウントできます。" }, 400);
+        }
+
+        if (panelNumber > current.grid_rows * current.grid_columns) {
+          return json({ ok: false, error: "パネル番号が範囲外です。" }, 400);
+        }
+
+        const panelInfoUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+        panelInfoUrl.searchParams.set("select", "panel_number,condition_text,is_gift_free,auto_gift_point");
+        panelInfoUrl.searchParams.set("challenge_id", `eq.${current.id}`);
+        panelInfoUrl.searchParams.set("panel_number", `eq.${panelNumber}`);
+        panelInfoUrl.searchParams.set("limit", "1");
+
+        const panelInfoResponse = await fetch(panelInfoUrl, { headers });
+        if (!panelInfoResponse.ok) {
+          return json({ ok: false, error: "パネル情報を確認できませんでした。" }, 502);
+        }
+
+        const panelInfoList = await panelInfoResponse.json();
+        const panelInfo = panelInfoList[0];
+        if (!panelInfo) {
+          return json({ ok: false, error: "対象のパネルが見つかりません。" }, 404);
+        }
+
+        const conditionText = String(panelInfo.condition_text || "");
+        const giftPointFromText = conditionText.match(/([0-9][0-9,]*)\s*(?:ポイント|pt)/i);
+        const giftPoint = panelInfo.is_gift_free === true
+          ? 0
+          : (Number(panelInfo.auto_gift_point) > 0
+              ? Number(panelInfo.auto_gift_point)
+              : (giftPointFromText ? Number(giftPointFromText[1].replace(/,/g, "")) : 0));
+
+        // 100PT以上のギフトは+1のみ。0PT項目・99PT以下は+1/+5/+10。
+        if (delta > 1 && giftPoint >= 100) {
+          return json({ ok: false, error: "100PT以上のギフトは＋1ずつカウントしてください。" }, 400);
+        }
+
+        const rpcResponse = await fetch(`${baseUrl}/rest/v1/rpc/panepane_adjust_panel_count`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            p_challenge_id: current.id,
+            p_streamer_id: streamerId,
+            p_panel_number: panelNumber,
+            p_delta: delta,
+          }),
+        });
+
+        if (!rpcResponse.ok) {
+          const errorText = await rpcResponse.text();
+          console.error("Panel count update failed:", errorText);
+          return json({ ok: false, error: "カウントを保存できませんでした。通信状態を確認して、もう一度お試しください。" }, 502);
+        }
+
+        const countValue = await rpcResponse.json();
+        return json({
+          ok: true,
+          panel_number: panelNumber,
+          count_value: Number(countValue) || 0,
         });
       }
 
