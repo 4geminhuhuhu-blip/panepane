@@ -459,6 +459,68 @@ export async function onRequest({ request, env }) {
         });
       }
 
+      // 配信中カウンター：現在値を直接編集
+      if (body.action === "set-panel-count") {
+        const panelNumber = Number(body.panel_number);
+        const countValue = Number(body.count_value);
+        if (!Number.isInteger(panelNumber) || panelNumber < 1 ||
+            !Number.isSafeInteger(countValue) || countValue < 0 || countValue > 2147483647) {
+          return json({ ok: false, error: "カウント数は0以上の整数で入力してください。" }, 400);
+        }
+        if (!current.is_started || current.is_ended) {
+          return json({ ok: false, error: "配信中のチャレンジでのみ編集できます。" }, 400);
+        }
+        if (panelNumber > current.grid_rows * current.grid_columns) {
+          return json({ ok: false, error: "パネル番号が範囲外です。" }, 400);
+        }
+        const updateUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+        updateUrl.searchParams.set("challenge_id", `eq.${current.id}`);
+        updateUrl.searchParams.set("panel_number", `eq.${panelNumber}`);
+        const updateResponse = await fetch(updateUrl, {
+          method: "PATCH",
+          headers: { ...headers, Prefer: "return=representation" },
+          body: JSON.stringify({ count_value: countValue, updated_at: new Date().toISOString() }),
+        });
+        if (!updateResponse.ok) {
+          console.error("Panel count direct edit failed:", await updateResponse.text());
+          return json({ ok: false, error: "カウント数を保存できませんでした。" }, 502);
+        }
+        const updated = await updateResponse.json();
+        if (!updated.length) return json({ ok: false, error: "対象のパネルが見つかりません。" }, 404);
+        return json({ ok: true, panel_number: panelNumber, count_value: Number(updated[0].count_value) || 0 });
+      }
+
+      // 配信中カウンター：目標数を直接編集（数値のみ）
+      if (body.action === "set-panel-target") {
+        const panelNumber = Number(body.panel_number);
+        const targetValue = String(body.target_value == null ? "" : body.target_value).trim();
+        if (!Number.isInteger(panelNumber) || panelNumber < 1 ||
+            !/^\d+$/.test(targetValue) || !Number.isSafeInteger(Number(targetValue)) || Number(targetValue) < 1) {
+          return json({ ok: false, error: "目標は1以上の整数で入力してください。" }, 400);
+        }
+        if (!current.is_started || current.is_ended) {
+          return json({ ok: false, error: "配信中のチャレンジでのみ編集できます。" }, 400);
+        }
+        if (panelNumber > current.grid_rows * current.grid_columns) {
+          return json({ ok: false, error: "パネル番号が範囲外です。" }, 400);
+        }
+        const updateUrl = new URL(`${baseUrl}/rest/v1/challenge_panels`);
+        updateUrl.searchParams.set("challenge_id", `eq.${current.id}`);
+        updateUrl.searchParams.set("panel_number", `eq.${panelNumber}`);
+        const updateResponse = await fetch(updateUrl, {
+          method: "PATCH",
+          headers: { ...headers, Prefer: "return=representation" },
+          body: JSON.stringify({ target_value: targetValue, updated_at: new Date().toISOString() }),
+        });
+        if (!updateResponse.ok) {
+          console.error("Panel target edit failed:", await updateResponse.text());
+          return json({ ok: false, error: "目標数を保存できませんでした。" }, 502);
+        }
+        const updated = await updateResponse.json();
+        if (!updated.length) return json({ ok: false, error: "対象のパネルが見つかりません。" }, 404);
+        return json({ ok: true, panel_number: panelNumber, target_value: updated[0].target_value });
+      }
+
       // 配信中カウンター：個別パネルのカウントを安全に加減算
       if (body.action === "adjust-panel-count") {
         const panelNumber = Number(body.panel_number);
@@ -467,7 +529,7 @@ export async function onRequest({ request, env }) {
         if (
           !Number.isInteger(panelNumber) ||
           panelNumber < 1 ||
-          ![-1, 1, 5, 10].includes(delta)
+          ![1, 5, 10, 50, 100, 1000].includes(delta)
         ) {
           return json({ ok: false, error: "カウントの指定が正しくありません。" }, 400);
         }
@@ -505,9 +567,12 @@ export async function onRequest({ request, env }) {
               ? Number(panelInfo.auto_gift_point)
               : (giftPointFromText ? Number(giftPointFromText[1].replace(/,/g, "")) : 0));
 
-        // 100PT以上のギフトは+1のみ。0PT項目・99PT以下は+1/+5/+10。
-        if (delta > 1 && giftPoint >= 100) {
-          return json({ ok: false, error: "100PT以上のギフトは＋1ずつカウントしてください。" }, 400);
+        // 0PT項目は+1/+5/+10/+50/+100/+1000、1〜99PTは+1/+5/+10、100PT以上は+1のみ。
+        const allowedDeltas = giftPoint === 0
+          ? [1, 5, 10, 50, 100, 1000]
+          : giftPoint < 100 ? [1, 5, 10] : [1];
+        if (!allowedDeltas.includes(delta)) {
+          return json({ ok: false, error: "このパネルでは選択できない加算数です。" }, 400);
         }
 
         const rpcResponse = await fetch(`${baseUrl}/rest/v1/rpc/panepane_adjust_panel_count`, {
