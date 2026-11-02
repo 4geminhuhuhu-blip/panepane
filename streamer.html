@@ -181,32 +181,20 @@
 
     /* 重点パネル */
     .panel-item.featured-panel {
-      position: relative;
-      padding-top: 38px;
       border: 3px solid #d97706;
       background: #fffbeb;
       box-shadow: 0 0 0 3px #fef3c7;
     }
 
     .featured-badge {
-      position: absolute;
-      top: 8px;
-      right: 8px;
-      z-index: 5;
       display: inline-block;
-      margin: 0;
-      padding: 5px 10px;
-      border: 2px solid #fff7ed;
-      border-radius: 5px;
-      background: linear-gradient(135deg, #ef4444, #c2410c);
-      color: #ffffff;
+      margin: 0 0 8px;
+      padding: 5px 11px;
+      border-radius: 20px;
+      background: #fef3c7;
+      color: #92400e;
       font-size: 12px;
-      font-weight: 900;
-      line-height: 1.2;
-      letter-spacing: .02em;
-      transform: rotate(7deg);
-      box-shadow: 0 2px 5px rgba(124, 45, 18, .28);
-      pointer-events: none;
+      font-weight: bold;
     }
 
     button {
@@ -428,20 +416,6 @@
       .panel-heading {font-size:15px;}
       .auto-create-preview {font-size:17px;}
     }
-
-    .live-management-link {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 48px;
-      padding: 12px 20px;
-      border-radius: 10px;
-      background: #0f766e;
-      color: #fff;
-      font-weight: 800;
-      text-decoration: none;
-    }
-    .live-management-link:focus-visible { outline: 3px solid #99f6e4; outline-offset: 3px; }
   </style>
 </head>
 <body>
@@ -454,9 +428,6 @@
       <h2>チャレンジ設定</h2>
       <p>立ち絵チャレンジのタイトルや、条件ごとの内容を設定できます。</p>
       <span id="challenge-status" class="status-badge">読み込み中</span>
-      <div class="actions" style="margin-top:14px;">
-        <a href="/live.html" class="live-management-link">配信中管理へ</a>
-      </div>
     </section>
 
     <section class="card">
@@ -1242,7 +1213,7 @@
       if (isFeatured) {
         const badge = document.createElement("div");
         badge.className = "featured-badge";
-        badge.textContent = "🔥 今イチオシ！";
+        badge.textContent = "★ 重点パネル";
         item.appendChild(badge);
       }
 
@@ -1811,7 +1782,7 @@
         showMessage(
           challenge
             ? "保存済みの設定を読み込みました。"
-            : "まだチャレンジはありません。設定して保存してください。",
+            : "まだチャレンジはありません。立ち絵は先にアップロードできます。",
           "success"
         );
       }
