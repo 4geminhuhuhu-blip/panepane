@@ -307,7 +307,22 @@
       align-items: center;
     }
 
-    .image-scale-number-wrap {
+.image-position-input-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 96px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .image-position-input-row input[type="number"] {
+      width: 100%;
+      min-width: 0;
+      padding: 9px 8px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+        .image-scale-number-wrap {
       display: flex;
       align-items: center;
       gap: 5px;
@@ -615,15 +630,25 @@
           左右の位置
           <span id="image-x-value" class="image-adjust-value">0</span>
         </label>
-        <input id="image-x" type="range"
-          min="-100" max="100" value="0" step="1">
+        <div class="image-position-input-row">
+          <input id="image-x" type="range"
+            min="-100" max="100" value="0" step="1">
+          <input id="image-x-number" type="number"
+            min="-100" max="100" value="0" step="1"
+            inputmode="numeric" aria-label="左右の位置">
+        </div>
 
         <label for="image-y">
           上下の位置
           <span id="image-y-value" class="image-adjust-value">0</span>
         </label>
-        <input id="image-y" type="range"
-          min="-100" max="100" value="0" step="1">
+        <div class="image-position-input-row">
+          <input id="image-y" type="range"
+            min="-100" max="100" value="0" step="1">
+          <input id="image-y-number" type="number"
+            min="-100" max="100" value="0" step="1"
+            inputmode="numeric" aria-label="上下の位置">
+        </div>
       </div>
 
       <div class="actions">
@@ -791,6 +816,8 @@
   const imageScaleNumberInput = document.getElementById("image-scale-number");
   const imageXValue = document.getElementById("image-x-value");
   const imageYValue = document.getElementById("image-y-value");
+  const imageXNumberInput = document.getElementById("image-x-number");
+  const imageYNumberInput = document.getElementById("image-y-number");
 
   let challenge = null;
   let panels = [];
@@ -838,13 +865,26 @@
     return Math.min(max, Math.max(min, Math.round(number)));
   }
 
+  function clampImagePosition(value, input) {
+    const min = Number(input.min) || -100;
+    const max = Number(input.max) || 100;
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) return null;
+    return Math.min(max, Math.max(min, Math.round(number)));
+  }
+
   function applyImageAdjustments() {
     const scale = clampImageScale(imageScaleInput.value) ?? 100;
-    const x = Number(imageXInput.value);
-    const y = Number(imageYInput.value);
+    const x = clampImagePosition(imageXInput.value, imageXInput) ?? 0;
+    const y = clampImagePosition(imageYInput.value, imageYInput) ?? 0;
 
     imageScaleInput.value = String(scale);
     imageScaleNumberInput.value = String(scale);
+    imageXInput.value = String(x);
+    imageYInput.value = String(y);
+    imageXNumberInput.value = String(x);
+    imageYNumberInput.value = String(y);
 
     imagePreview.style.objectFit = "contain";
     imagePreview.style.transform =
@@ -876,6 +916,25 @@
   imageScaleNumberInput.addEventListener("blur", applyImageScaleFromNumber);
   imageXInput.addEventListener("input", applyImageAdjustments);
   imageYInput.addEventListener("input", applyImageAdjustments);
+
+  imageXNumberInput.addEventListener("input", function () {
+    const value = clampImagePosition(imageXNumberInput.value, imageXInput);
+    if (value === null) return;
+    imageXInput.value = String(value);
+    applyImageAdjustments();
+  });
+
+  imageYNumberInput.addEventListener("input", function () {
+    const value = clampImagePosition(imageYNumberInput.value, imageYInput);
+    if (value === null) return;
+    imageYInput.value = String(value);
+    applyImageAdjustments();
+  });
+
+  imageXNumberInput.addEventListener("change", applyImageAdjustments);
+  imageXNumberInput.addEventListener("blur", applyImageAdjustments);
+  imageYNumberInput.addEventListener("change", applyImageAdjustments);
+  imageYNumberInput.addEventListener("blur", applyImageAdjustments);
 
   function displayCharacterImage(url) {
     if (previewObjectUrl) {
