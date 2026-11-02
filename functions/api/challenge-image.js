@@ -1,4 +1,3 @@
-
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -35,6 +34,7 @@ async function getStreamerId(request, env) {
     "/rest/v1/streamer_sessions",
     env.SUPABASE_URL
   );
+
   url.searchParams.set("select", "streamer_id,expires_at");
   url.searchParams.set("token_hash", `eq.${tokenHash}`);
   url.searchParams.set("limit", "1");
@@ -46,7 +46,9 @@ async function getStreamerId(request, env) {
     },
   });
 
-  if (!response.ok) throw new Error("Session lookup failed");
+  if (!response.ok) {
+    throw new Error("Session lookup failed");
+  }
 
   const sessions = await response.json();
   const session = sessions[0];
@@ -74,27 +76,36 @@ async function uploadImage(request, env, streamerId) {
   const contentType = request.headers.get("Content-Type") || "";
 
   if (!contentType.toLowerCase().startsWith("multipart/form-data")) {
-    return json({
-      ok: false,
-      error: "画像ファイルを選択してください",
-    }, 400);
+    return json(
+      {
+        ok: false,
+        error: "画像ファイルを選択してください",
+      },
+      400
+    );
   }
 
   const formData = await request.formData();
   const file = formData.get("image");
 
   if (!file || typeof file.arrayBuffer !== "function") {
-    return json({
-      ok: false,
-      error: "画像ファイルが見つかりません",
-    }, 400);
+    return json(
+      {
+        ok: false,
+        error: "画像ファイルが見つかりません",
+      },
+      400
+    );
   }
 
   if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
-    return json({
-      ok: false,
-      error: "画像は5MB以下のファイルを選択してください",
-    }, 400);
+    return json(
+      {
+        ok: false,
+        error: "画像は5MB以下のファイルを選択してください",
+      },
+      400
+    );
   }
 
   const allowedTypes = {
@@ -106,22 +117,31 @@ async function uploadImage(request, env, streamerId) {
   const extension = allowedTypes[file.type];
 
   if (!extension) {
-    return json({
-      ok: false,
-      error: "PNG・JPEG・WebP形式の画像を選択してください",
-    }, 400);
+    return json(
+      {
+        ok: false,
+        error: "PNG・JPEG・WebP形式の画像を選択してください",
+      },
+      400
+    );
   }
 
-  // チャレンジが作成済みであることを確認
+  // チャレンジを取得
   const challengeUrl = new URL(
     "/rest/v1/challenges",
     env.SUPABASE_URL
   );
+
   challengeUrl.searchParams.set(
     "select",
     "id,image_url,is_started,is_ended"
   );
-  challengeUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
+
+  challengeUrl.searchParams.set(
+    "streamer_id",
+    `eq.${streamerId}`
+  );
+
   challengeUrl.searchParams.set("limit", "1");
 
   const challengeResponse = await fetch(challengeUrl, {
@@ -133,28 +153,115 @@ async function uploadImage(request, env, streamerId) {
   }
 
   const challenges = await challengeResponse.json();
-  const challenge = challenges[0];
+
+  /*
+   * 設定保存前でも立ち絵を登録できるようにする。
+   *
+   * チャレンジがまだ存在しない場合は、
+   * 立ち絵保存用の下書きチャレンジを自動作成する。
+   *
+   * 後から「設定を保存」を押した場合は、
+   * 既存のチャレンジ更新処理によって
+   * この下書きチャレンジが更新される。
+   */
+  let challenge = challenges[0];
 
   if (!challenge) {
-    return json({
-      ok: false,
-      error: "先にチャレンジの設定を保存してください",
-    }, 409);
+    const createUrl = new URL(
+      "/rest/v1/challenges",
+      env.SUPABASE_URL
+    );
+
+    const createResponse = await fetch(createUrl, {
+      method: "POST",
+      headers: supabaseHeaders(env, {
+        "Content-Type": "application/json",
+        Prefer: "return=representation",
+      }),
+      body: JSON.stringify({
+        streamer_id: streamerId,
+
+        // 設定保存前の仮データ
+        title: "立ち絵チャレンジ",
+
+        // 初期グリッド
+        grid_rows: 3,
+        grid_columns: 3,
+
+        // 画像表示設定の初期値
+        image_position_x: 0,
+        image_position_y: 0,
+        image_scale: 100,
+
+        // ウォーターマーク初期値
+        show_watermark: true,
+
+        // その他の初期値
+        thank_you_message: null,
+        auto_gift_target_pt: null,
+
+        // 新規チャレンジなので未開始・未終了
+        is_started: false,
+        is_ended: false,
+      }),
+    });
+
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+
+      console.error(
+        "Draft challenge creation failed:",
+        errorText
+      );
+
+      return json(
+        {
+          ok: false,
+          error:
+            "立ち絵を保存するための下書きを作成できませんでした。",
+        },
+        502
+      );
+    }
+
+    const createdChallenges = await createResponse.json();
+
+    challenge = createdChallenges[0];
+
+    if (!challenge || !challenge.id) {
+      return json(
+        {
+          ok: false,
+          error:
+            "立ち絵を保存するためのチャレンジIDを取得できませんでした。",
+        },
+        502
+      );
+    }
   }
 
-  // 終了済みのチャレンジでは画像を変更できない
+  // 終了済みのチャレンジでは画像変更不可
   if (challenge.is_ended === true) {
-    return json({
-      ok: false,
-      error: "終了済みのチャレンジでは画像を変更できません",
-    }, 409);
+    return json(
+      {
+        ok: false,
+        error:
+          "終了済みのチャレンジでは画像を変更できません",
+      },
+      409
+    );
   }
 
+  // 開始済みのチャレンジでは画像変更不可
   if (challenge.is_started) {
-    return json({
-      ok: false,
-      error: "開始済みのチャレンジでは画像を変更できません",
-    }, 409);
+    return json(
+      {
+        ok: false,
+        error:
+          "開始済みのチャレンジでは画像を変更できません",
+      },
+      409
+    );
   }
 
   // アカウントごとに専用の保存先を作る
@@ -187,10 +294,13 @@ async function uploadImage(request, env, streamerId) {
       await uploadResponse.text()
     );
 
-    return json({
-      ok: false,
-      error: "画像のアップロードに失敗しました",
-    }, 502);
+    return json(
+      {
+        ok: false,
+        error: "画像のアップロードに失敗しました",
+      },
+      502
+    );
   }
 
   const imageUrl = new URL(
@@ -198,16 +308,37 @@ async function uploadImage(request, env, streamerId) {
     env.SUPABASE_URL
   ).toString();
 
-  // アップロード成功後に、チャレンジの画像URLを更新
-  // 開始・終了状態も条件にして、状態変更後の更新を防ぐ
+  /*
+   * アップロード成功後に、
+   * チャレンジの画像URLを更新する。
+   *
+   * 開始・終了状態も条件にして、
+   * 状態変更後の更新を防ぐ。
+   */
   const updateUrl = new URL(
     "/rest/v1/challenges",
     env.SUPABASE_URL
   );
-  updateUrl.searchParams.set("id", `eq.${challenge.id}`);
-  updateUrl.searchParams.set("streamer_id", `eq.${streamerId}`);
-  updateUrl.searchParams.set("is_started", "eq.false");
-  updateUrl.searchParams.set("is_ended", "eq.false");
+
+  updateUrl.searchParams.set(
+    "id",
+    `eq.${challenge.id}`
+  );
+
+  updateUrl.searchParams.set(
+    "streamer_id",
+    `eq.${streamerId}`
+  );
+
+  updateUrl.searchParams.set(
+    "is_started",
+    "eq.false"
+  );
+
+  updateUrl.searchParams.set(
+    "is_ended",
+    "eq.false"
+  );
 
   const updateResponse = await fetch(updateUrl, {
     method: "PATCH",
@@ -224,7 +355,10 @@ async function uploadImage(request, env, streamerId) {
   if (!updateResponse.ok) {
     await updateResponse.text();
 
-    // URL保存に失敗したら、今回アップロードした画像を削除
+    /*
+     * DBへのURL保存に失敗した場合、
+     * 今回アップロードした画像を削除する。
+     */
     const cleanupUrl = new URL(
       `/storage/v1/object/challenge-images/${storagePath}`,
       env.SUPABASE_URL
@@ -235,15 +369,23 @@ async function uploadImage(request, env, streamerId) {
       headers: supabaseHeaders(env),
     }).catch(() => {});
 
-    return json({
-      ok: false,
-      error: "画像情報を保存できませんでした。以前の画像は維持されています",
-    }, 502);
+    return json(
+      {
+        ok: false,
+        error:
+          "画像情報を保存できませんでした。以前の画像は維持されています",
+      },
+      502
+    );
   }
 
   const updatedRows = await updateResponse.json();
 
   if (!updatedRows.length) {
+    /*
+     * 更新対象が存在しなかった場合も、
+     * 今回アップロードした画像を削除する。
+     */
     const cleanupUrl = new URL(
       `/storage/v1/object/challenge-images/${storagePath}`,
       env.SUPABASE_URL
@@ -254,25 +396,37 @@ async function uploadImage(request, env, streamerId) {
       headers: supabaseHeaders(env),
     }).catch(() => {});
 
-    return json({
-      ok: false,
-      error: "画像を変更できませんでした。ページを再読み込みしてください",
-    }, 409);
+    return json(
+      {
+        ok: false,
+        error:
+          "画像を変更できませんでした。ページを再読み込みしてください",
+      },
+      409
+    );
   }
 
-  // 新しい画像が保存できた後に限り、古い画像を削除する
+  /*
+   * 新しい画像が正常に保存された後で、
+   * 古い画像を削除する。
+   */
   const oldImageUrl = challenge.image_url;
 
   if (oldImageUrl) {
     try {
       const oldUrl = new URL(oldImageUrl);
-      const prefix = "/storage/v1/object/public/challenge-images/";
+
+      const prefix =
+        "/storage/v1/object/public/challenge-images/";
 
       if (
-        oldUrl.origin === new URL(env.SUPABASE_URL).origin &&
+        oldUrl.origin ===
+          new URL(env.SUPABASE_URL).origin &&
         oldUrl.pathname.startsWith(prefix)
       ) {
-        const oldPath = oldUrl.pathname.slice(prefix.length);
+        const oldPath =
+          oldUrl.pathname.slice(prefix.length);
+
         const deleteUrl = new URL(
           `/storage/v1/object/challenge-images/${oldPath}`,
           env.SUPABASE_URL
@@ -284,11 +438,17 @@ async function uploadImage(request, env, streamerId) {
         });
 
         if (!deleteResponse.ok) {
-          console.error("Old image cleanup failed:", deleteResponse.status);
+          console.error(
+            "Old image cleanup failed:",
+            deleteResponse.status
+          );
         }
       }
     } catch (error) {
-      console.error("Old image cleanup failed:", error);
+      console.error(
+        "Old image cleanup failed:",
+        error
+      );
     }
   }
 
@@ -299,37 +459,62 @@ async function uploadImage(request, env, streamerId) {
 }
 
 export async function onRequest({ request, env }) {
-  if (!env.SUPABASE_URL || !env.SUPABASE_SECRET_KEY) {
-    return json({
-      ok: false,
-      error: "Server configuration error",
-    }, 500);
+  if (
+    !env.SUPABASE_URL ||
+    !env.SUPABASE_SECRET_KEY
+  ) {
+    return json(
+      {
+        ok: false,
+        error: "Server configuration error",
+      },
+      500
+    );
   }
 
   if (request.method !== "POST") {
-    return json({
-      ok: false,
-      error: "POST method required",
-    }, 405);
+    return json(
+      {
+        ok: false,
+        error: "POST method required",
+      },
+      405
+    );
   }
 
   try {
-    const streamerId = await getStreamerId(request, env);
+    const streamerId =
+      await getStreamerId(request, env);
 
     if (!streamerId) {
-      return json({
-        ok: false,
-        error: "ログインの有効期限が切れています。再ログインしてください",
-      }, 401);
+      return json(
+        {
+          ok: false,
+          error:
+            "ログインの有効期限が切れています。再ログインしてください",
+        },
+        401
+      );
     }
 
-    return await uploadImage(request, env, streamerId);
+    return await uploadImage(
+      request,
+      env,
+      streamerId
+    );
   } catch (error) {
-    console.error("Challenge image API error:", error);
+    console.error(
+      "Challenge image API error:",
+      error
+    );
 
-    return json({
-      ok: false,
-      error: "画像処理中にエラーが発生しました",
-    }, 500);
+    return json(
+      {
+        ok: false,
+        error:
+          "画像処理中にエラーが発生しました",
+      },
+      500
+    );
   }
 }
