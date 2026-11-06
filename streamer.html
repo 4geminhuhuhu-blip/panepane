@@ -115,6 +115,7 @@
       color: #64748b;
     }
 
+    #panel-list > .panel-item[hidden] { display: none !important; }
     .grid-settings {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -682,14 +683,23 @@
           1行目は見出し（ヘッダー）にしてください。<br>
           データの1行目が条件1、2行目が条件2……になります。<br>
           UTF-8形式とExcelで作成したShift_JIS形式に対応しています。<br>
-          CSVに記載されていない条件は空欄になります。
+          CSVに記載されていない条件は空欄になります。<br>
+          例：項目,目標,あと ／ しらすまん,20個,あと5個<br>
+          ※取り込み前に現在の設定を控えてください。CSV取り込みでは条件を上書きします。
         </p>
         <input id="conditions-csv" type="file" accept=".csv,text/csv">
         <p id="csv-message" role="status" aria-live="polite"></p>
       </div>
 
       <p id="panel-count" class="hint">9条件</p>
+      <div id="settings-pager" class="actions" style="align-items:center;flex-wrap:wrap">
+        <button id="settings-prev" type="button" class="secondary-button">前の10件</button>
+        <span id="settings-page-label" aria-live="polite"></span>
+        <button id="settings-next" type="button" class="secondary-button">次の10件</button>
+      </div>
       <div id="panel-list" class="panel-list"></div>
+      <div class="actions"><button id="clear-conditions" type="button" class="secondary-button">全パネルの条件をクリア</button><button id="export-conditions" type="button" class="secondary-button">条件一覧をPNGで保存</button></div>
+      <p class="hint">一括クリアは開始前のみ。入力欄を空欄にしますが、保存には項目・目標の再入力が必要です。画像出力は入力中の内容を使用します。</p>
       <p id="auto-panel-total-status" class="auto-total-status" hidden aria-live="polite"></p>
 
       <div class="actions">
@@ -1051,6 +1061,8 @@
     autoCreateButton.disabled = ended || started || loading || saving;
 
     saveButton.disabled = ended || loading || saving;
+    document.getElementById("clear-conditions").disabled = ended || loading || saving || started;
+    document.getElementById("export-conditions").disabled = loading || saving;
     csvInput.disabled = ended || loading || saving;
 
     imageInput.disabled = ended || uploadingImage || loading || saving;
@@ -1086,6 +1098,83 @@
       input.disabled = ended || loading || saving;
     });
   }
+
+  let settingsPage = 0;
+  const settingsPageSize = 10;
+  const settingsPrev = document.getElementById("settings-prev");
+  const settingsNext = document.getElementById("settings-next");
+  const settingsPageLabel = document.getElementById("settings-page-label");
+  function updateSettingsPager() {
+    const items = Array.from(panelList.children);
+    const pages = Math.max(1, Math.ceil(items.length / settingsPageSize));
+    settingsPage = Math.min(settingsPage, pages - 1);
+    items.forEach((item, i) => { item.hidden = Math.floor(i / settingsPageSize) !== settingsPage; });
+    settingsPageLabel.textContent = (settingsPage + 1) + " / " + pages + " ページ（" + items.length + "件）";
+    settingsPrev.disabled = settingsPage === 0;
+    settingsNext.disabled = settingsPage >= pages - 1;
+  }
+  settingsPrev.addEventListener("click", () => { settingsPage--; updateSettingsPager(); });
+  settingsNext.addEventListener("click", () => { settingsPage++; updateSettingsPager(); });
+
+  document.getElementById("clear-conditions").addEventListener("click", function () {
+    if (loading || saving || isEnded() || (challenge && challenge.is_started)) {
+      showMessage("条件の一括クリアはチャレンジ開始前のみ利用できます。", "error");
+      return;
+    }
+    if (!window.confirm("全パネルの項目・目標・あとを空欄にします。保存前なら再読み込みで戻せます。続けますか？")) return;
+    panelList.querySelectorAll('input[data-field="condition_text"],input[data-field="target_value"],input[data-field="current_value"]').forEach(input => {
+      input.value = "";
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    settingsPage = 0;
+    updateSettingsPager();
+    showMessage("全条件を空欄にしました。保存するには各パネルの「項目」「目標」を入力してください。", "success");
+  });
+
+  document.getElementById("export-conditions").addEventListener("click", async function () {
+    const rows = Array.from({ length: getRows() * getColumns() }, (_, i) => {
+      const n = i + 1;
+      const get = field => panelList.querySelector('input[data-number="' + n + '"][data-field="' + field + '"]')?.value || "";
+      return [String(n), get("condition_text"), get("target_value"), get("current_value")];
+    });
+    const perPage = 24, width = 1080, height = 1350;
+    const button = this;
+    button.disabled = true;
+    try {
+      const total = Math.ceil(rows.length / perPage);
+      for (let page = 0; page < total; page++) {
+        const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = "#26384a"; ctx.fillRect(0, 0, width, height);
+        ctx.fillStyle = "#ffffff"; ctx.font = "bold 48px sans-serif";
+        ctx.fillText("パネパン 条件一覧", 55, 85);
+        ctx.font = "24px sans-serif"; ctx.fillText((page + 1) + " / " + total + " ページ", 830, 85);
+        const x = [60, 155, 580, 820], sizes = [95, 425, 240, 200];
+        const cut = (text, max) => {
+          let t = String(text || "");
+          while (ctx.measureText(t).width > max - 18 && t.length > 1) t = t.slice(0, -2) + "…";
+          return t;
+        };
+        const drawRow = (data, y, header) => {
+          ctx.fillStyle = header ? "#cbdce9" : "#ffffff";
+          ctx.fillRect(50, y - 35, 980, 46);
+          ctx.fillStyle = "#1e293b"; ctx.font = (header ? "bold " : "") + "23px sans-serif";
+          data.forEach((value, i) => ctx.fillText(cut(value, sizes[i]), x[i], y - 4));
+        };
+        drawRow(["No.", "項目", "目標", "のこり"], 155, true);
+        rows.slice(page * perPage, (page + 1) * perPage).forEach((row, i) => drawRow(row, 211 + i * 46, false));
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+        if (!blob) throw new Error("画像の生成に失敗しました");
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url;
+        a.download = "panepane-conditions-" + (page + 1) + "-of-" + total + ".png";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 30000);
+      }
+      showMessage(total + "枚の画像を生成しました。ブラウザによっては複数ダウンロードの許可が必要です。", "success");
+    } catch (error) { showMessage(error.message || "画像の出力に失敗しました", "error"); }
+    finally { button.disabled = false; }
+  });
 
   function renderPanels(preserveCurrentValues) {
     const count = getRows() * getColumns();
@@ -1415,6 +1504,7 @@
       panelList.appendChild(item);
     }
 
+    updateSettingsPager();
     updateControls();
   }
 
@@ -2203,11 +2293,13 @@
 
     if (!conditionInput.value.trim()) {
       showMessage("条件 " + number + " の項目を入力してください。", "error");
+      settingsPage = Math.floor((number - 1) / settingsPageSize); updateSettingsPager();
       conditionInput.focus();
       return;
     }
     if (!targetInput.value.trim()) {
       showMessage("条件 " + number + " の目標を入力してください。", "error");
+      settingsPage = Math.floor((number - 1) / settingsPageSize); updateSettingsPager();
       targetInput.focus();
       return;
     }
@@ -2217,6 +2309,7 @@
         "条件 " + number + " の項目名は40文字以内にしてください。",
         "error"
       );
+      settingsPage = Math.floor((number - 1) / settingsPageSize); updateSettingsPager();
       conditionInput.focus();
       return;
     }
