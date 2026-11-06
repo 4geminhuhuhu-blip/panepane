@@ -302,22 +302,45 @@
       font-weight: 700;
     }
 
-    /* 8～10列では、物理的に収まらない全文を無理に詰め込まない。 */
+    /* 多枚数でも「項目」と「あと」は扉に常時表示する。目標は詳細ダイアログへ。 */
     .board.compact-board .panel:not(.open) {
-      padding: 2px;
-      gap: 0;
+      padding: 2px 1px;
+      gap: 2px;
       cursor: pointer;
+      justify-content: center;
     }
     .board.compact-board .panel-item {
       font-family: "Yu Gothic", "Meiryo", sans-serif;
-      font-size: clamp(8px, 1.45vw, 11px);
+      font-size: clamp(7px, 1.25vw, 11px);
       line-height: 1.15;
       padding: 2px 1px;
-      max-height: 70%;
+      max-height: 58%;
       overflow: hidden;
       overflow-wrap: anywhere;
+      flex-shrink: 1;
     }
-    .board.compact-board .panel-detail { display: none; }
+    .board.compact-board .target-detail { display: none; }
+    .board.compact-board .current-detail {
+      display: block;
+      width: 100%;
+      min-height: 0;
+      flex-shrink: 0;
+      margin: 0;
+      padding: 2px 1px;
+      font-size: clamp(8px, 1.4vw, 12px);
+      line-height: 1.1;
+      overflow: hidden;
+    }
+    .board.compact-board .current-detail .detail-label {
+      display: block;
+      margin: 0;
+      font-size: .8em;
+    }
+    .board.compact-board .current-detail .detail-value {
+      display: block;
+      font-size: 1em;
+      overflow-wrap: anywhere;
+    }
     .board.compact-board .featured-stamp {
       top: 0;
       right: 0;
