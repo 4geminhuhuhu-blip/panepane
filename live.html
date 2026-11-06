@@ -215,8 +215,10 @@
 
   function orderedPanels() {
     return panels.slice().sort(function (a, b) {
-      const aDone = isAchieved(a);
-      const bDone = isAchieved(b);
+      // 達成しただけでは並び替えない。開放したパネルだけを後方へ移す。
+      // 達成直後に操作中のカードがページ外へ飛ぶことを防ぐ。
+      const aDone = Boolean(a.is_open);
+      const bDone = Boolean(b.is_open);
       if (aDone !== bDone) return aDone ? 1 : -1;
       if (aDone && bDone) return Number(a.panel_number) - Number(b.panel_number);
       const pointDiff = getGiftPoint(a) - getGiftPoint(b);
