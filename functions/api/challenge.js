@@ -135,6 +135,9 @@ export async function onRequest({ request, env }) {
         "panel_number,condition_text,target_value,current_value,count_value,is_open,auto_reason,is_gift_free,auto_target_pt,auto_gift_point,panel_image_url"
       );
       panelsUrl.searchParams.set("challenge_id", `eq.${record.id}`);
+      // 保存済みの余剰パネルは削除せず、現在の設定枚数だけ返す。
+      // 縮小後も旧データを保持し、再拡張時の復元を可能にする。
+      panelsUrl.searchParams.set("panel_number", `lte.${Number(record.grid_rows) * Number(record.grid_columns)}`);
       panelsUrl.searchParams.set("order", "panel_number.asc");
 
       const panelsResponse = await fetch(panelsUrl, { headers });
