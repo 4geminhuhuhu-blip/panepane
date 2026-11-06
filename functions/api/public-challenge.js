@@ -110,6 +110,12 @@ export async function onRequest({ request, env }) {
       `eq.${record.id}`
     );
 
+    // 縮小後にDBへ残る旧パネルを表示対象から除外する。
+    // 削除しないため、再拡張時に画像・条件・開放状態を保持できる。
+    panelsUrl.searchParams.set(
+      "panel_number",
+      `lte.${Number(record.grid_rows) * Number(record.grid_columns)}`
+    );
     panelsUrl.searchParams.set(
       "order",
       "panel_number.asc"
