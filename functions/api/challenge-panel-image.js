@@ -39,9 +39,9 @@ export async function onRequest({ request, env }) {
     if (!Number.isInteger(panelNumber) || panelNumber < 1 || panelNumber > 100) return json({ ok: false, error: "パネル番号が正しくありません。" }, 400);
     if (!file || typeof file.arrayBuffer !== "function") return json({ ok: false, error: "画像ファイルが見つかりません。" }, 400);
     if (file.size <= 0 || file.size > 2 * 1024 * 1024) return json({ ok: false, error: "画像は2MB以下のファイルを選択してください。" }, 400);
-    const extensions = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+    const extensions = { "image/png": "png", "image/jpeg": "jpg" };
     const extension = extensions[file.type];
-    if (!extension) return json({ ok: false, error: "PNG・JPEG・WebP形式の画像を選択してください。" }, 400);
+    if (!extension) return json({ ok: false, error: "PNG・JPEG形式の画像を選択してください。" }, 400);
 
     const headers = { apikey: env.SUPABASE_SECRET_KEY, Authorization: `Bearer ${env.SUPABASE_SECRET_KEY}` };
     const base = env.SUPABASE_URL.replace(/\/+$/, "");
