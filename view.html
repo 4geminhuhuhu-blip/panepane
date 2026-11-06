@@ -302,6 +302,47 @@
       font-weight: 700;
     }
 
+    /* 8～10列では、物理的に収まらない全文を無理に詰め込まない。 */
+    .board.compact-board .panel:not(.open) {
+      padding: 2px;
+      gap: 0;
+      cursor: pointer;
+    }
+    .board.compact-board .panel-item {
+      font-family: "Yu Gothic", "Meiryo", sans-serif;
+      font-size: clamp(8px, 1.45vw, 11px);
+      line-height: 1.15;
+      padding: 2px 1px;
+      max-height: 70%;
+      overflow: hidden;
+      overflow-wrap: anywhere;
+    }
+    .board.compact-board .panel-detail { display: none; }
+    .board.compact-board .featured-stamp {
+      top: 0;
+      right: 0;
+      max-width: 100%;
+      padding: 1px 2px;
+      border-width: 1px;
+      font-size: clamp(6px, 1.1vw, 9px);
+      white-space: normal;
+      transform: none;
+    }
+    .panel-info-dialog {
+      width: min(420px, calc(100vw - 32px));
+      max-height: calc(100vh - 40px);
+      overflow: auto;
+      border: 1px solid #d6d1c6;
+      border-radius: 14px;
+      padding: 20px;
+      background: #fffdf8;
+      color: #424841;
+      box-shadow: 0 12px 35px rgba(0,0,0,.25);
+    }
+    .panel-info-dialog::backdrop { background: rgba(0,0,0,.45); }
+    .panel-info-dialog p { overflow-wrap: anywhere; white-space: pre-wrap; }
+    .panel-info-dialog button { padding: 8px 20px; cursor: pointer; }
+
     /* 扉が開くアニメーション */
     .panel.opening {
       perspective: 700px;
@@ -764,6 +805,14 @@
       </div>
     </div>
 
+    <dialog id="panelInfoDialog" class="panel-info-dialog" aria-labelledby="panelInfoTitle">
+      <h2 id="panelInfoTitle">パネル詳細</h2>
+      <p id="panelInfoCondition"></p>
+      <p id="panelInfoTarget"></p>
+      <p id="panelInfoRemaining"></p>
+      <button type="button" id="panelInfoClose">閉じる</button>
+    </dialog>
+
     <div id="thankYouMessage" class="thank-you-message hidden" aria-live="polite">
       <div class="thank-you-title">THANK YOU</div>
       <div id="thankYouMessageText"></div>
@@ -930,6 +979,16 @@
         `translate(${x}px, ${y}px) scale(${scale})`;
     }
 
+    const panelInfoDialog = document.getElementById("panelInfoDialog");
+    document.getElementById("panelInfoClose").addEventListener("click", () => panelInfoDialog.close());
+    function showPanelInfo(panel) {
+      document.getElementById("panelInfoTitle").textContent = `パネル ${panel.panel_number}`;
+      document.getElementById("panelInfoCondition").textContent = `条件：${panel.condition_text || "未設定"}`;
+      document.getElementById("panelInfoTarget").textContent = `目標：${panel.target_value || "未設定"}`;
+      document.getElementById("panelInfoRemaining").textContent = `あと：${panel.current_value || "未設定"}`;
+      if (!panelInfoDialog.open) panelInfoDialog.showModal();
+    }
+
     function createPanel(panel, featuredPanelNumber, animateOpening) {
       const cell = document.createElement("div");
       cell.className = "panel";
@@ -1041,6 +1100,18 @@
       cell.appendChild(item);
       cell.appendChild(target);
       cell.appendChild(current);
+      cell.tabIndex = 0;
+      cell.setAttribute("role", "button");
+      cell.setAttribute("aria-label", `パネル${panel.panel_number}の詳細を見る`);
+      cell.addEventListener("click", () => {
+        if (board.classList.contains("compact-board")) showPanelInfo(panel);
+      });
+      cell.addEventListener("keydown", event => {
+        if (board.classList.contains("compact-board") && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          showPanelInfo(panel);
+        }
+      });
 
       return cell;
     }
@@ -1050,6 +1121,8 @@
       columns,
       featuredPanelNumber
     ) {
+      board.classList.toggle("compact-board", columns >= 8 || rows >= 8);
+
       panelsEl.style.gridTemplateColumns =
         `repeat(${columns}, minmax(0, 1fr))`;
 
