@@ -111,7 +111,7 @@ async function uploadImage(request, env, streamerId) {
   const allowedTypes = {
     "image/png": "png",
     "image/jpeg": "jpg",
-    "image/webp": "webp",
+    
   };
 
   const extension = allowedTypes[file.type];
@@ -120,7 +120,7 @@ async function uploadImage(request, env, streamerId) {
     return json(
       {
         ok: false,
-        error: "PNG・JPEG・WebP形式の画像を選択してください",
+        error: "PNG・JPEG形式の画像を選択してください",
       },
       400
     );
