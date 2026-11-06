@@ -590,13 +590,13 @@
       <h2>立ち絵の設定</h2>
 
       <p class="hint">
-        PNG・JPEG・WebP形式、5MB以下の画像を選択してください。チャレンジ開始前にアップロードが必要です。
+        PNG・JPEG形式、5MB以下の画像を選択してください。チャレンジ開始前にアップロードが必要です。
         アップロードした画像は公開チャレンジでも表示されます。
       </p>
 
       <label for="character-image">立ち絵画像 <span class="field-mark required">必須</span></label>
       <input id="character-image" type="file"
-        accept="image/png,image/jpeg,image/webp">
+        accept="image/png,image/jpeg">
 
       <div class="image-preview-area">
         <strong>画像プレビュー</strong>
@@ -1002,14 +1002,13 @@
 
     const allowedTypes = [
       "image/png",
-      "image/jpeg",
-      "image/webp"
+      "image/jpeg"
     ];
 
     if (!allowedTypes.includes(file.type)) {
       imageInput.value = "";
       showImageMessage(
-        "PNG・JPEG・WebP形式の画像を選択してください。",
+        "PNG・JPEG形式の画像を選択してください。",
         "error"
       );
       return;
@@ -1257,7 +1256,7 @@
       imageLabel.textContent = "パネル画像（任意・2MBまで）";
       const imageInput = document.createElement("input");
       imageInput.type = "file";
-      imageInput.accept = "image/png,image/jpeg,image/webp";
+      imageInput.accept = "image/png,image/jpeg";
       imageInput.dataset.panelImageNumber = String(number);
       const imagePreview = document.createElement("img");
       imagePreview.alt = "パネル画像プレビュー";
@@ -1313,8 +1312,8 @@
           imageInput.value = "";
           return;
         }
-        if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-          showMessage("PNG・JPEG・WebP形式の画像を選択してください。", "error");
+        if (!["image/png", "image/jpeg"].includes(file.type)) {
+          showMessage("PNG・JPEG形式の画像を選択してください。", "error");
           imageInput.value = "";
           return;
         }
