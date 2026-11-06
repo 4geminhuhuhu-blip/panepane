@@ -687,6 +687,22 @@
           例：項目,目標,あと ／ しらすまん,20個,あと5個<br>
           ※取り込み前に現在の設定を控えてください。CSV取り込みでは条件を上書きします。
         </p>
+        <div class="csv-preview" aria-label="CSV入力例" style="margin:12px 0 14px;overflow-x:auto">
+          <p style="margin:0 0 7px;font-weight:700">CSV入力例（1行目は見出し）</p>
+          <table style="width:100%;border-collapse:collapse;background:white;font-size:14px;min-width:290px">
+            <thead><tr style="background:#e6eff9">
+              <th scope="col" style="border:1px solid #94a3b8;padding:9px;text-align:left">項目</th>
+              <th scope="col" style="border:1px solid #94a3b8;padding:9px;text-align:left">目標</th>
+              <th scope="col" style="border:1px solid #94a3b8;padding:9px;text-align:left">あと</th>
+            </tr></thead>
+            <tbody>
+              <tr><td style="border:1px solid #cbd5e1;padding:9px">しらすまん</td><td style="border:1px solid #cbd5e1;padding:9px">20個</td><td style="border:1px solid #cbd5e1;padding:9px">5個</td></tr>
+              <tr><td style="border:1px solid #cbd5e1;padding:9px">スター</td><td style="border:1px solid #cbd5e1;padding:9px">40万</td><td style="border:1px solid #cbd5e1;padding:9px">10万</td></tr>
+              <tr><td style="border:1px solid #cbd5e1;padding:9px">バラ缶</td><td style="border:1px solid #cbd5e1;padding:9px">2個</td><td style="border:1px solid #cbd5e1;padding:9px">1個</td></tr>
+            </tbody>
+          </table>
+          <p class="hint" style="margin:7px 0 0">表の1行が1つの条件になるよ。CSVに保存してから下のボタンで読み込んでね。</p>
+        </div>
         <input id="conditions-csv" type="file" accept=".csv,text/csv">
         <p id="csv-message" role="status" aria-live="polite"></p>
       </div>
