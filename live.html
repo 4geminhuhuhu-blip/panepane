@@ -125,6 +125,14 @@
     </section>
     <div id="notice" class="notice hidden"></div>
     <div id="message" role="status" aria-live="polite"></div>
+    <div class="viewer-url-row" style="margin:16px 0;align-items:center">
+      <button id="counter-prev" type="button">前の10件</button>
+      <span id="counter-page-label" aria-live="polite"></span>
+      <button id="counter-next" type="button">次の10件</button>
+      <label for="counter-jump">ページ指定</label>
+      <input id="counter-jump" type="number" min="1" step="1" style="max-width:85px" aria-label="移動するページ番号">
+      <button id="counter-go" type="button">移動</button>
+    </div>
     <section id="panel-list" class="panel-list" aria-label="パネルカウンター"></section>
     <div id="empty-state" class="empty-state hidden"></div>
   </main>
@@ -138,6 +146,26 @@
   const messageEl = document.getElementById("message");
   const panelListEl = document.getElementById("panel-list");
   const emptyEl = document.getElementById("empty-state");
+  let counterPage = 0;
+  let scrollToPanelAfterOpen = null;
+  const counterPrev = document.getElementById("counter-prev");
+  const counterNext = document.getElementById("counter-next");
+  const counterJump = document.getElementById("counter-jump");
+  const counterPageLabel = document.getElementById("counter-page-label");
+  const counterGo = document.getElementById("counter-go");
+  function counterPages() { return Math.max(1, Math.ceil(panels.length / 10)); }
+  function changeCounterPage(page) {
+    counterPage = Math.max(0, Math.min(counterPages() - 1, page));
+    render();
+    panelListEl.scrollIntoView({ behavior: "auto", block: "start" });
+  }
+  counterPrev.addEventListener("click", () => changeCounterPage(counterPage - 1));
+  counterNext.addEventListener("click", () => changeCounterPage(counterPage + 1));
+  counterGo.addEventListener("click", () => {
+    const n = Number(counterJump.value);
+    if (Number.isInteger(n) && n >= 1 && n <= counterPages()) changeCounterPage(n - 1);
+    else setMessage("1〜" + counterPages() + "のページ番号を入力してください", "error");
+  });
   const viewerUrlInput = document.getElementById("viewer-url");
   const copyViewerUrlButton = document.getElementById("copy-viewer-url");
   const openViewerUrlLink = document.getElementById("open-viewer-url");
@@ -225,8 +253,15 @@
       return;
     }
 
-    orderedPanels().forEach(function (panel) {
+    const sorted = orderedPanels();
+    counterPage = Math.min(counterPage, Math.max(0, Math.ceil(sorted.length / 10) - 1));
+    counterPageLabel.textContent = (counterPage + 1) + " / " + counterPages() + " ページ";
+    counterPrev.disabled = counterPage === 0;
+    counterNext.disabled = counterPage >= counterPages() - 1;
+    counterJump.max = String(counterPages());
+    sorted.slice(counterPage * 10, counterPage * 10 + 10).forEach(function (panel) {
       const card = document.createElement("article");
+      card.dataset.panelNumber = String(panel.panel_number);
       card.className = "counter-card" + (isAchieved(panel) ? " achieved" : "");
 
       const top = document.createElement("div");
@@ -376,7 +411,12 @@
 
       panelListEl.appendChild(card);
     });
-    window.scrollTo(0, scrollY);
+    if (scrollToPanelAfterOpen !== null) {
+      const opened = panelListEl.querySelector('[data-panel-number="' + scrollToPanelAfterOpen + '"]');
+      scrollToPanelAfterOpen = null;
+      if (opened) opened.scrollIntoView({ behavior: "smooth", block: "center" });
+      else window.scrollTo(0, scrollY);
+    } else window.scrollTo(0, scrollY);
   }
 
   async function getChallenge() {
@@ -550,6 +590,12 @@
       });
       const result = await response.json();
       if (!response.ok || result.ok !== true) throw new Error(result.error || "パネルを開けませんでした。");
+      // 開放後も対象パネルを表示するため、並び替え後のページを選択
+      const updated = panels.find(p => Number(p.panel_number) === panelNumber);
+      if (updated) updated.is_open = true;
+      const index = orderedPanels().findIndex(p => Number(p.panel_number) === panelNumber);
+      if (index >= 0) counterPage = Math.floor(index / 10);
+      scrollToPanelAfterOpen = panelNumber;
       await load(true);
       setMessage("パネルを開きました！", "success");
     } catch (error) {
